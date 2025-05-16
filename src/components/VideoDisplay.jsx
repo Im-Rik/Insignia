@@ -5,7 +5,7 @@ function VideoDisplay({ videoRef, isRecording }) {
     <div className="relative w-full h-full bg-black rounded-md sm:rounded-lg md:rounded-xl overflow-hidden shadow-inner"> 
       <video
         ref={videoRef}
-        className="block w-full h-full object-contain"
+        className="block w-full h-full object-contain -scale-x-100" 
         playsInline
         muted
       />
