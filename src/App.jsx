@@ -9,16 +9,16 @@ function App() {
   const videoRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const [mockSubtitles, setMockSubtitles] = useState([
-    "Hello there!", // Freshened mock text
+    "Hello there!",
     "Welcome to this live caption demo.",
-    "Notice the updated styling.",
-    "Video feed is on the left.",
+    "This interface is now responsive.",
+    "Video and captions stack on mobile.",
     "System is processing audio input...",
     "Transcribing in near real-time.",
     "Modern UI with React & Tailwind.",
     "Awaiting further speech...",
-    "Components are now more rounded.",
-    "Spacing has been adjusted."
+    "Components adapt to screen size.",
+    "Layout is constrained on very large screens." // New mock text
   ]);
   const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState(0);
 
@@ -26,9 +26,9 @@ function App() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1920 },
+          width: { ideal: 1920 }, // Aim for HD
           height: { ideal: 1080 },
-          frameRate: { ideal: 30 } // Request a smoother frame rate
+          frameRate: { ideal: 30 }
         },
         audio: false
       });
@@ -41,7 +41,7 @@ function App() {
         });
       }
       setIsRecording(true);
-      setSubtitles(''); // Clear previous subtitles
+      setSubtitles('');
       setCurrentSubtitleIndex(0);
       console.log("Video stream started");
     } catch (err) {
@@ -70,7 +70,7 @@ function App() {
           `${prev}\n${mockSubtitles[currentSubtitleIndex % mockSubtitles.length]}`.split('\n').slice(-10).join('\n')
         );
         setCurrentSubtitleIndex(prevIndex => prevIndex + 1);
-      }, 2200); // Slightly adjusted interval
+      }, 2200);
     }
     return () => {
       if (intervalId) {
@@ -80,30 +80,36 @@ function App() {
   }, [isRecording, mockSubtitles, currentSubtitleIndex]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans p-3 sm:p-4 md:p-6"> {/* Added padding to the whole app */}
+    // Outermost container for the entire app viewport
+    <div className="flex flex-col items-center h-screen bg-gray-900 text-gray-100 font-sans">
       
-      {/* Main Content Area: Video and Subtitles */}
-      <div className="flex flex-1 overflow-hidden rounded-xl shadow-2xl bg-gray-800/70 backdrop-blur-md border border-gray-700/50"> {/* Rounded corners, shadow, subtle background */}
-        
-        {/* Video Display Area */}
-        <div className="flex-grow flex items-center justify-center p-2 md:p-3 lg:p-4 bg-black/50 relative"> {/* Padding inside, darker bg */}
-          {/* VideoDisplay component will be here, its own styling will apply for rounded video */}
-           <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
+      {/* Centering and Max-Width Container */}
+      {/* This container will take full width up to a certain max-width, then center itself. */}
+      {/* It also handles the vertical flex layout and padding for its children. */}
+      <div className="flex flex-col w-full max-w-screen-2xl h-full p-2 sm:p-3 md:p-4 lg:p-6"> {/* Added max-w-screen-2xl, adjust as needed (e.g., screen-xl) */}
+
+        {/* Main Content Area: Video and Subtitles */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden rounded-lg md:rounded-xl shadow-xl md:shadow-2xl bg-gray-800/70 backdrop-blur-md border border-gray-700/50">
+          
+          {/* Video Display Area */}
+          <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
+             <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
+          </div>
+
+          {/* Subtitle Display */}
+          <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
+            <div className="h-64 sm:h-72 md:h-full"> 
+              <SubtitleDisplay subtitles={subtitles} isRecording={isRecording} />
+            </div>
+          </div>
         </div>
 
-        {/* Subtitle Display - sidebar on the right */}
-        {/* Increased width slightly, added padding inside the subtitle box */}
-        <div className="w-80 sm:w-96 md:w-[400px] flex-shrink-0 bg-gray-800/80 border-l border-gray-700/60 flex flex-col">
-          <SubtitleDisplay subtitles={subtitles} isRecording={isRecording} />
+        {/* Controls - footer */}
+        <div className="mt-2 sm:mt-3 md:mt-4 p-2.5 sm:p-3 md:p-3.5 bg-gray-800/70 backdrop-blur-md rounded-lg md:rounded-xl shadow-lg border border-gray-700/50">
+          <Controls isRecording={isRecording} onStart={startVideo} onStop={stopVideo} />
         </div>
-      </div>
-
-      {/* Controls - footer */}
-      {/* Added margin-top for spacing, and padding inside the controls bar */}
-      <div className="mt-3 sm:mt-4 md:mt-6 p-3 sm:p-4 bg-gray-800/70 backdrop-blur-md rounded-xl shadow-lg border border-gray-700/50">
-        <Controls isRecording={isRecording} onStart={startVideo} onStop={stopVideo} />
-      </div>
-    </div>
+      </div> {/* End of Centering and Max-Width Container */}
+    </div> // End of Outermost container
   );
 }
 
