@@ -1,0 +1,3 @@
+this server is built to handle single file upload and predict the output of a sign language gesture within the video. It intelligently prioritizes speed by first running a prediction model and immediately sending the text result back to the user, then follows up in the background by converting the video into a web-friendly format for preview.
+
+50 MB is limit
