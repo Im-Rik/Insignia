@@ -1,6 +1,9 @@
-backend/server_1/converted_videos
-backend/server_1/temp_videos
-
-
 app.py
 
+# Ignore only these two folders inside backend/server_1
+backend/server_1/converted_videos/
+backend/server_1/temp_videos/
+
+# But keep everything else in server_1, including app.py
+!backend/server_1/
+!backend/server_1/app.py
