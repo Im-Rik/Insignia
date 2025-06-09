@@ -7,3 +7,5 @@ backend/server_1/temp_videos/
 # But keep everything else in server_1, including app.py
 !backend/server_1/
 !backend/server_1/app.py
+!backend/server_2/
+!backend/server_2/app.py
