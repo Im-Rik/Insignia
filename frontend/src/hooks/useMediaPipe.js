@@ -1,81 +1,69 @@
-// hooks/useMediaPipe.js
+// src/hooks/useMediaPipe.js - FINAL PRODUCTION-READY VERSION
 import { useEffect, useRef } from 'react';
 import { Holistic } from '@mediapipe/holistic';
 
-const PROCESS_EVERY_N_FRAMES = 3;
-
 const useMediaPipe = (videoRef, isActive, onResults) => {
   const holisticRef = useRef(null);
-  const frameCountRef = useRef(0);
-  const animationIdRef = useRef(null);
-  const isProcessingRef = useRef(false);
-
+  const animationFrameIdRef = useRef(null);
+  
   useEffect(() => {
-    if (!isActive || !videoRef.current) {
-      return; // Exit early if not active or ref is not set
-    }
-
-    const videoElement = videoRef.current;
-
-    const holistic = new Holistic({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`,
-    });
-
-    holistic.setOptions({
-      modelComplexity: 0,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      smoothSegmentation: false,
-      refineFaceLandmarks: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
-
-    holistic.onResults((results) => {
-      isProcessingRef.current = false;
-      onResults(results);
-    });
-
-    holisticRef.current = holistic;
-
-    const processFrame = async () => {
-      if (!holisticRef.current || !videoElement) return;
-
-      frameCountRef.current++;
+    // This function runs the main processing loop
+    const processFrameLoop = async () => {
+      // Safety check: if the hook is no longer active, stop the loop.
+      if (!isActive || !holisticRef.current) {
+        return;
+      }
       
-      if (frameCountRef.current % PROCESS_EVERY_N_FRAMES === 0 && !isProcessingRef.current) {
-        isProcessingRef.current = true;
+      const videoElement = videoRef.current;
+      
+      // Poll until the video is ready to be processed
+      if (videoElement && videoElement.readyState >= 3) { // HAVE_FUTURE_DATA
         try {
           await holisticRef.current.send({ image: videoElement });
         } catch (error) {
-          console.error('MediaPipe processing error:', error);
-          isProcessingRef.current = false;
+          console.error("MediaPipe failed to send frame:", error);
+          // Stop the loop if a critical error occurs
+          return;
         }
       }
-
-      animationIdRef.current = requestAnimationFrame(processFrame);
+      
+      // Request the next frame to continue the loop
+      animationFrameIdRef.current = requestAnimationFrame(processFrameLoop);
     };
 
-    // More robust way to start processing
-    const startProcessing = () => {
-      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
-      animationIdRef.current = requestAnimationFrame(processFrame);
-    };
+    if (isActive) {
+      if (!holisticRef.current) {
+        // Initialize Holistic once
+        const holistic = new Holistic({
+          locateFile: (file) => `/${file}`, // Use local files from the /public directory
+        });
 
-    // Listen for the 'canplay' event to safely start processing
-    videoElement.addEventListener('canplay', startProcessing);
+        holistic.setOptions({
+          modelComplexity: 0,
+          smoothLandmarks: true,
+          enableSegmentation: false,
+          smoothSegmentation: false,
+          refineFaceLandmarks: false,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
 
-    // Cleanup function
+        holistic.onResults(onResults);
+        holisticRef.current = holistic;
+      }
+
+      // Start the processing loop
+      processFrameLoop();
+
+    }
+
+    // Cleanup function runs when isActive becomes false or the component unmounts
     return () => {
-      videoElement.removeEventListener('canplay', startProcessing);
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-      }
-      if (holisticRef.current) {
-        holisticRef.current.close();
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
       }
     };
-  }, [isActive, onResults, videoRef]); // Dependencies remain the same
+  }, [isActive, onResults, videoRef]);
 };
 
 export default useMediaPipe;
