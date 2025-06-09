@@ -161,7 +161,7 @@ const onMediaPipeResults = useCallback((results) => {
           <>
             <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
               <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
-              {showMediaPipe && results && <MediaPipeOverlay results={results} videoRef={videoRef} />}
+              {showMediaPipe && results && <MediaPipeOverlay results={results} videoRef={videoRef} isProcessing={isRecording}/>}
             </div>
             <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
               <DeveloperAnalytics
