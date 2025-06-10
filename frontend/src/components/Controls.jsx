@@ -1,71 +1,115 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, createRef } from 'react';
 
-function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVideo,  onClearUpload }) {
-  const modes = [
-    { value: 'user-mode-1', label: 'User Mode 1' },
-    { value: 'user-mode-2', label: 'User Mode 2' },
-    { value: 'developer-mode-1', label: 'Developer Mode 1' },
-    { value: 'developer-mode-2', label: 'Developer Mode 2' }
-  ];
+// --- Self-Contained SVG Icons (No Changes Here) ---
+const IconUser = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+);
+const IconUpload = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+);
+const IconDev = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+);
+const IconStart = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /><path d="M14.553 5.106A1 1 0 0116 6v8a1 1 0 01-1.447.894l-3-2A1 1 0 0111 12V8a1 1 0 01.553-.894l3-2z" /></svg>
+);
+const IconStop = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+);
 
-  return (
-    <div className="flex justify-between items-center gap-3 sm:gap-4">
-      {/* Mode Selector Dropdown */}
-      <div className="flex items-center gap-2">
-        <label htmlFor="mode-select" className="text-xs sm:text-sm text-gray-400 font-medium">
-          Mode:
-        </label>
-        <select
-          id="mode-select"
-          value={mode}
-          onChange={(e) => onModeChange(e.target.value)}
-          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-700/80 border border-gray-600 rounded-md sm:rounded-lg text-xs sm:text-sm text-gray-200 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition duration-200 hover:bg-gray-700"
-        >
-          {modes.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-      </div>
+// --- The Main Controls Component ---
+function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVideo, onClearUpload }) {
+    
+    const modes = [
+        { value: 'user-mode-1', label: 'Live', icon: <IconUser /> },
+        { value: 'user-mode-2', label: 'Upload', icon: <IconUpload /> },
+        { value: 'developer-mode-1', label: 'Dev', icon: <IconDev /> },
+        { value: 'developer-mode-2', label: 'Dev 2', icon: <IconDev /> },
+    ];
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        {mode === 'user-mode-2' && uploadedVideo && (
-          <button
-            onClick={onClearUpload}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-700/80 text-gray-300 font-medium rounded-md sm:rounded-lg border border-gray-600 hover:bg-gray-700 hover:text-white transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-60 text-xs sm:text-sm"
-          >
-            Clear Video
-          </button>
-        )}
+    // **THE FIX**: Create an array of refs, one for each button.
+    const buttonRefs = useRef(modes.map(() => createRef()));
+    const [sliderStyle, setSliderStyle] = useState({});
+
+    useEffect(() => {
+        const activeIndex = modes.findIndex((m) => m.value === mode);
         
-        {mode !== 'user-mode-2' && (
-          !isRecording ? (
-            <button
-              onClick={onStart}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-br from-teal-500 to-teal-600 text-white font-semibold rounded-md sm:rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-60 text-xs sm:text-sm"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="w-4 h-4 sm:w-[18px] sm:h-[18px]" viewBox="0 0 16 16">
-                <path fillRule="evenodd" d="M0 5a2 2 0 0 1 2-2h7.5a2 2 0 0 1 1.983 1.738l3.11-1.382A1 1 0 0 1 16 4.269v7.462a1 1 0 0 1-1.406.913l-3.111-1.382A2 2 0 0 1 9.5 13H2a2 2 0 0 1-2-2z"/>
-              </svg>
-              Start Video
-            </button>
-          ) : (
-            <button
-              onClick={onStop}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-br from-red-500 to-red-600 text-white font-semibold rounded-md sm:rounded-lg shadow-md hover:from-red-600 hover:to-red-700 transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-60 text-xs sm:text-sm"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="w-4 h-4 sm:w-[18px] sm:h-[18px]" viewBox="0 0 16 16">
-                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M6.5 5A1.5 1.5 0 0 0 5 6.5v3A1.5 1.5 0 0 0 6.5 11h3A1.5 1.5 0 0 0 11 9.5v-3A1.5 1.5 0 0 0 9.5 5z"/>
-              </svg>
-              Stop Video
-            </button>
-          )
-        )}
-      </div>
-    </div>
-  );
+        // Get the DOM node from our reliable ref array
+        const activeTabNode = buttonRefs.current[activeIndex]?.current;
+
+        if (activeTabNode) {
+            setSliderStyle({
+                left: `${activeTabNode.offsetLeft}px`,
+                width: `${activeTabNode.offsetWidth}px`,
+            });
+        }
+    }, [mode]); // Dependency array is now just 'mode'
+
+
+    return (
+        <div className="flex justify-between items-center gap-4 w-full px-4 py-2">
+
+            {/* --- Animated Mode Selector --- */}
+            <div className="relative flex items-center p-1 bg-gray-800/70 border border-gray-700/60 rounded-lg">
+                {/* The animated sliding background */}
+                <div
+                    className="absolute bg-cyan-600 shadow rounded-md h-[calc(100%-0.5rem)] transition-all duration-300 ease-in-out"
+                    style={sliderStyle}
+                />
+                
+                {modes.map((m, index) => (
+                    <button
+                        key={m.value}
+                        // **THE FIX**: Assign the correct ref from the array to each button
+                        ref={buttonRefs.current[index]}
+                        onClick={() => onModeChange(m.value)}
+                        className={`
+                            relative z-10 flex items-center justify-center gap-2 px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors duration-300
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400
+                            ${mode === m.value
+                                ? 'text-white' // Active text is white
+                                : 'text-gray-400 hover:text-gray-200' // Inactive text
+                            }
+                        `}
+                    >
+                        {m.icon}
+                        <span>{m.label}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* --- Action Buttons (No Changes Here) --- */}
+            <div className="flex-shrink-0 flex items-center gap-3">
+                {mode === 'user-mode-2' && uploadedVideo && (
+                    <button
+                        onClick={onClearUpload}
+                        className="px-4 py-2 bg-gray-700 text-gray-300 font-medium rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition duration-200 text-sm"
+                    >
+                        Clear Video
+                    </button>
+                )}
+                {mode !== 'user-mode-2' && (
+                    !isRecording ? (
+                        <button
+                            onClick={onStart}
+                            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-70 text-sm"
+                        >
+                            <IconStart />
+                            <span>Start Video</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onStop}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-70 text-sm"
+                        >
+                            <IconStop />
+                            <span>Stop Video</span>
+                        </button>
+                    )
+                )}
+            </div>
+        </div>
+    );
 }
 
 export default Controls;
