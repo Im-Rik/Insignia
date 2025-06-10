@@ -8,22 +8,18 @@ import VideoUploader from './components/VideoUploader';
 import UserMode2Processor from './components/UserMode2Processor';
 import DeveloperAnalytics from './components/DeveloperAnalytics';
 import MediaPipeOverlay from './components/MediaPipeOverlay';
-import WindowSizeSelector from './components/WindowSizeSelector';
 import HistoryList from './components/HistoryList';
 import useVideoStream from './hooks/useVideoStream';
 import useMediaPipe from './hooks/useMediaPipe';
 import { socket } from './socket';
 import { extractKeypoints } from './utils/keypointExtractor';
-import { mockSubtitles } from './utils/subtitles';
+
 
 function App() {
   const { videoRef, isRecording, startVideo, stopVideo } = useVideoStream();
-  const [subtitles, setSubtitles] = useState('');
-  const [currentSubtitleIndex, setCurrentSubtitleIndex] = useState(0);
   const [mode, setMode] = useState('user-mode-1');
   const [uploadedVideo, setUploadedVideo] = useState(null);
   const [accuracy, setAccuracy] = useState(0);
-  const [windowSize, setWindowSize] = useState(2);
   const [results, setResults] = useState(null);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [devStats, setDevStats] = useState({ buffer: 0, latency: 0, pps: 0, videoResolution: '', packetsSent: 0 });
@@ -268,7 +264,7 @@ const onMediaPipeResults = useCallback((results) => {
       default:
         return null;
     }
-  }, [mode, videoRef, isRecording, subtitles, uploadedVideo, accuracy, windowSize, showMediaPipe, results, handleVideoUpload, isConnected, predictionHistory, devStats.buffer, devStats.latency, devStats.pps, fps, devStats.videoResolution]);
+  }, [mode, videoRef, isRecording, uploadedVideo, accuracy, showMediaPipe, results, handleVideoUpload, isConnected, predictionHistory, devStats.buffer, devStats.latency, devStats.pps, fps, devStats.videoResolution]);
 
 
   return (
