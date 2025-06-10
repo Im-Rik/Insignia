@@ -19,7 +19,7 @@ const HistoryItem = ({ item }) => {
       <span className="font-mono font-semibold text-gray-200">{item.prediction}</span>
       <div className="text-right">
         <span className="font-mono text-xs text-gray-400 block">{confidence.toFixed(1)}%</span>
-        <span className="font-mono text-xs text-gray-500 block">{item.timestamp}</span>
+        <span className="font-mono text-xs text-gray-500 block">{item.time}</span>
       </div>
     </div>
   );
@@ -28,13 +28,13 @@ const HistoryItem = ({ item }) => {
 const HistoryList = ({ history }) => {
   return (
     <div className="flex flex-col h-full p-3 sm:p-4">
-      <p className="text-sm font-semibold text-cyan-400 border-b border-gray-700 pb-2 mb-3">
+      <p className="text-sm sm:text-base font-semibold text-cyan-400 border-b border-gray-700 pb-2">
         Prediction History
       </p>
       <div className="flex-grow space-y-2 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500 scrollbar-track-gray-800/50 scrollbar-thumb-rounded-full">
         {history.length > 0 ? (
           history.map((item, index) => (
-            <HistoryItem key={`${item.timestamp}-${index}`} item={item} />
+            <HistoryItem key={`${item.time}-${index}`} item={item} />
           ))
         ) : (
           <div className="text-center text-gray-500 pt-10">

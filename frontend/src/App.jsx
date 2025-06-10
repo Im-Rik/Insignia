@@ -26,13 +26,27 @@ function App() {
   const [windowSize, setWindowSize] = useState(2);
   const [results, setResults] = useState(null);
   const [isConnected, setIsConnected] = useState(socket.connected);
-  const [devStats, setDevStats] = useState({ buffer: 0 });
+  const [devStats, setDevStats] = useState({ buffer: 0, latency: 0, pps: 0, videoResolution: '', packetsSent: 0 });
+  const [fps, setFps] = useState(0);
   const [predictionHistory, setPredictionHistory] = useState([]);
 
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
   const showMediaPipe = useMemo(() => mode === 'developer-mode-1', [mode]);
+  const lastKeypointTime = useRef(0);
+
+  const frameCountRef = useRef(0);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setFps(frameCountRef.current);
+      frameCountRef.current = 0;
+    }, 1000); // Runs every 1 second
+
+    // Cleanup the interval when the component unmounts
+    return () => clearInterval(intervalId);
+  }, []);
 
   // --- EFFECT 1: Manages the WebSocket connection. Runs only ONCE. ---
   useEffect(() => {
@@ -55,17 +69,44 @@ function App() {
     }
 
     function onPrediction(data) {
-      if (modeRef.current === 'developer-mode-1') {
+      if (modeRef.current === 'developer-mode-1' || modeRef.current === 'user-mode-1') {
+
+        // --- LATENCY CALCULATION ---
+        let roundTripTime = 0;
+        if (lastKeypointTime.current > 0) {
+          roundTripTime = performance.now() - lastKeypointTime.current;
+          // lastKeypointTime.current = 0; // Reset for the next measurement
+        }
         
         // Create a new prediction object, matching the format for HistoryList
         const newPrediction = {
           prediction: data.prediction,
           confidence: parseFloat(data.confidence),
-          timestamp: new Date().toLocaleTimeString() // Add a timestamp
+          timestamp: new Date().getTime(),
+          time: new Date().toLocaleTimeString()
         };
 
         // Add the new object to our history array
-        setPredictionHistory(prevHistory => [newPrediction, ...prevHistory]);
+        setPredictionHistory(prevHistory => { 
+          
+          const updatedHistory = [newPrediction, ...prevHistory].slice(0, 50);
+
+          // --- PPS CALCULATION ---
+           let currentPPS = 0;
+          if (updatedHistory.length > 10) {
+            const timeSpan = (updatedHistory[0].timestamp - updatedHistory[9].timestamp) / 1000; // time for last 10 preds in seconds
+            if (timeSpan > 0) { // Avoid division by zero
+               currentPPS = 10 / timeSpan;
+            }
+            
+          }
+
+          setDevStats(prev => ({ ...prev, latency: roundTripTime, pps: currentPPS }));
+          
+          return updatedHistory;
+
+
+        });
 
         // Continue to update the accuracy from the latest prediction
         setAccuracy(newPrediction.confidence * 100);
@@ -87,75 +128,83 @@ function App() {
     };
   }, []); // Empty dependency array is correct and intentional.
 
-  // --- EFFECT 2: Manages UI logic that depends on the mode ---
-  useEffect(() => {
-    let mockSubtitleInterval;
-    if (mode !== 'developer-mode-1') {
-      if (isRecording || (uploadedVideo && mode === 'user-mode-2')) {
-        mockSubtitleInterval = setInterval(() => {
-          setSubtitles(prev => {
-            const newSubtitle = mockSubtitles[currentSubtitleIndex % mockSubtitles.length];
-            return `${prev}\n${newSubtitle}`.slice(-1000);
-          });
-          setCurrentSubtitleIndex(prev => prev + 1);
-        }, 2200);
-      }
-    } else {
-        setSubtitles('');
-    }
 
-    return () => {
-      clearInterval(mockSubtitleInterval);
-    };
-  }, [mode, isRecording, uploadedVideo, currentSubtitleIndex]);
-
-
-  const handleVideoUpload = useCallback((file) => setUploadedVideo(file), []);
+const handleVideoUpload = useCallback((file) => setUploadedVideo(file), []);
 
 const onMediaPipeResults = useCallback((results) => {
-    if (showMediaPipe) setResults(results);
+    frameCountRef.current++;
+  
+   setResults(results);
 
-    if (mode === 'developer-mode-1' && isRecording && isConnected) {
-      const keypoints = extractKeypoints(results);
-      
-      // Data validation check
-      const hasInvalidData = keypoints.some(p => !isFinite(p));
-      if (hasInvalidData) {
-        console.error("❌ Invalid data detected in keypoints array (NaN or Infinity). Aborting send.");
-        return;
-      }
-      
-      // Update UI state
-      setDevStats(prev => ({ ...prev, buffer: (prev.buffer >= 59) ? 60 : prev.buffer + 1 }));
-      
-      // --- ADDING A LOG BEFORE WE EMIT ---
-      console.log("Sending keypoints to backend. Length:", keypoints.length);
-      
-      socket.emit('live_keypoints', keypoints);
+    // FIX: Combined all state updates into a single, efficient setDevStats call.
+    setDevStats(prev => {
+        let newResolution = prev.videoResolution;
+        if (isRecording && videoRef.current && !newResolution) {
+            const w = videoRef.current.videoWidth;
+            const h = videoRef.current.videoHeight;
+            if (w > 0 && h > 0) {
+                newResolution = `${w}x${h}`;
+            }
+        }
 
-    } else if (mode === 'developer-mode-1' && isRecording && !isConnected) {
-        setDevStats(prev => ({...prev, buffer: 0}));
-    }
-}, [showMediaPipe, mode, isRecording, isConnected]);
+        const isLiveMode = mode === 'developer-mode-1' || mode === 'user-mode-1';
+        
+        if (isLiveMode && isRecording && isConnected) {
+            const keypoints = extractKeypoints(results);
+            const hasInvalidData = keypoints.some(p => !isFinite(p));
+            if (hasInvalidData) {
+                console.error("❌ Invalid data detected. Aborting send.");
+                return { ...prev, videoResolution: newResolution }; // Return updated resolution but skip buffer update
+            }
+            
+            lastKeypointTime.current = performance.now();
+            socket.emit('live_keypoints', keypoints);
 
-  useMediaPipe(videoRef, isRecording && showMediaPipe, onMediaPipeResults);
+            return {
+                ...prev,
+                videoResolution: newResolution,
+                buffer: (prev.buffer >= 59) ? 60 : prev.buffer + 1,
+                packetsSent: prev.packetsSent + 1
+            };
+        } else if (mode === 'developer-mode-1' && isRecording && !isConnected) {
+             return {...prev, buffer: 0};
+        }
+
+        return { ...prev, videoResolution: newResolution };
+    });
+
+  }, [ mode, isRecording, isConnected]);
+
+   const enableMediaPipe = useMemo(() => isRecording && (mode === 'developer-mode-1' || mode === 'user-mode-1'), [isRecording, mode]);
+  useMediaPipe(videoRef, enableMediaPipe, onMediaPipeResults);
 
   // --- Render logic ---
   const renderContent = useMemo(() => {
+    const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
     switch (mode) {
       case 'user-mode-1':
         return (
-            <>
-              <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
-                <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
+          <>
+            <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
+              <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
+              {/* Note: MediaPipeOverlay is NOT rendered here */}
+            </div>
+            <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
+              {/* Note: DeveloperAnalytics is NOT rendered here */}
+              <div className="h-64 sm:h-72 md:h-full">
+                <SubtitleDisplay
+                  latestPrediction={latestPrediction}
+                  isRecording={isRecording}
+                  accuracy={accuracy}
+                  showAccuracy={true}
+                />
               </div>
-              <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
-                <div className="h-64 sm:h-72 md:h-full">
-                  <SubtitleDisplay subtitles={subtitles} isRecording={isRecording} />
-                </div>
+              <div className="flex-grow min-h-0">
+                <HistoryList history={predictionHistory} />
               </div>
-            </>
-          );
+            </div>
+          </>
+        );
       case 'user-mode-2':
         return (
           uploadedVideo ? (
@@ -170,7 +219,7 @@ const onMediaPipeResults = useCallback((results) => {
           )
         );
       case 'developer-mode-1':
-        const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
+        
         return (
           <>
             <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
@@ -178,21 +227,32 @@ const onMediaPipeResults = useCallback((results) => {
               {showMediaPipe && results && <MediaPipeOverlay results={results} videoRef={videoRef} isProcessing={isRecording}/>}
             </div>
             <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
-              <DeveloperAnalytics
-                accuracy={accuracy}
-                isRecording={isRecording}
-                isConnected={isConnected}
-                bufferSize={devStats.buffer}
-              />
-              <div className="h-64 sm:h-72 md:h-full">
+
+              {/* 1. Analytics Container: Takes top 50% of height and scrolls if content overflows. */}
+              <div className="h-1/2 flex-shrink-0 overflow-y-auto border-b border-gray-700/60 scrollbar-thin scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
+                <DeveloperAnalytics
+                  accuracy={accuracy}
+                  isRecording={isRecording}
+                  isConnected={isConnected}
+                  bufferSize={devStats.buffer}
+                  latency={devStats.latency} 
+                  pps={devStats.pps} 
+                  fps={fps}
+                  videoResolution={devStats.videoResolution} 
+                />
+              </div>
+
+              {/* 2. Subtitle Container: Takes its natural height and will not be squished. */}
+              <div className="flex-shrink-0">
                 <SubtitleDisplay
                   latestPrediction={latestPrediction}
                   isRecording={isRecording}
                   accuracy={accuracy}
-                  showAccuracy={true}
+                  showConfidence={false}
                 />
-
               </div>
+              
+              {/* 3. History Container: Takes all remaining space and allows its list to scroll. */}
               <div className="flex-grow min-h-0">
                 <HistoryList history={predictionHistory} />
               </div>
@@ -202,38 +262,13 @@ const onMediaPipeResults = useCallback((results) => {
       case 'developer-mode-2':
         return (
           <>
-            <div className="flex-grow flex flex-col p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
-              <WindowSizeSelector 
-                windowSize={windowSize} 
-                onWindowSizeChange={setWindowSize} 
-              />
-              <div className="flex-grow flex items-center justify-center">
-                <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
-              </div>
-            </div>
-            <div className="w-full md:w-72 lg:w-80 xl:w-96 md:flex-shrink-0 bg-gray-800/80 md:border-l border-gray-700/60 flex flex-col mt-2 md:mt-0 md:rounded-r-xl overflow-hidden">
-              <DeveloperAnalytics 
-                accuracy={accuracy} 
-                isRecording={isRecording}
-                windowSize={windowSize}
-                isConnected={isConnected} // Pass prop here too
-                bufferSize={devStats.buffer}
-              />
-              <div className="h-64 sm:h-72 md:h-full">
-                <SubtitleDisplay 
-                  subtitles={subtitles} 
-                  isRecording={isRecording} 
-                  accuracy={accuracy}
-                  showAccuracy={true}
-                />
-              </div>
-            </div>
+            <div> Yet to code</div>
           </>
         );
       default:
         return null;
     }
-  }, [mode, videoRef, isRecording, subtitles, uploadedVideo, accuracy, windowSize, showMediaPipe, results, handleVideoUpload, isConnected, devStats]);
+  }, [mode, videoRef, isRecording, subtitles, uploadedVideo, accuracy, windowSize, showMediaPipe, results, handleVideoUpload, isConnected, predictionHistory, devStats.buffer, devStats.latency, devStats.pps, fps, devStats.videoResolution]);
 
 
   return (
