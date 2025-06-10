@@ -1,24 +1,28 @@
+// src/components/SubtitleDisplay.jsx
+
 import React from 'react';
 
-function SubtitleDisplay({ subtitles, isRecording, accuracy, showAccuracy = false }) {
+function SubtitleDisplay({ latestPrediction, isRecording, accuracy, showAccuracy = false }) {
   const getAccuracyColor = (acc) => {
     if (acc >= 90) return 'text-green-400';
     if (acc >= 70) return 'text-yellow-400';
     return 'text-red-400';
   };
 
+  const displayText = latestPrediction ? latestPrediction.prediction : (isRecording ? "Listening..." : "Start video for captions.");
+
   return (
-    <div className="flex flex-col h-full p-3 sm:p-4">
-      <div className="mb-2 sm:mb-3">
-        <p className="text-sm sm:text-base md:text-md font-semibold text-cyan-400 border-b border-gray-700 pb-2 sm:pb-2.5">
-          Live Captions
+    <div className="flex flex-col p-3 sm:p-4 border-b border-gray-700/60">
+      {/* Header and Accuracy Bar */}
+      <div className="mb-3">
+        <p className="text-sm sm:text-base font-semibold text-cyan-400 border-b border-gray-700 pb-2">
+          Live Caption
         </p>
-        
         {showAccuracy && isRecording && (
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             <span className="text-xs text-gray-400">Accuracy:</span>
             <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 transition-all duration-300"
                 style={{ width: `${accuracy}%` }}
               />
@@ -30,21 +34,11 @@ function SubtitleDisplay({ subtitles, isRecording, accuracy, showAccuracy = fals
         )}
       </div>
 
-      <pre 
-        className="flex-grow whitespace-pre-wrap text-xs sm:text-sm text-gray-300 overflow-y-auto font-mono 
-                   scrollbar-thin scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500 
-                   scrollbar-track-gray-700/50 scrollbar-thumb-rounded-full scrollbar-track-rounded-full pr-1.5 sm:pr-2 leading-relaxed sm:leading-normal"
-      >
-        {subtitles || (isRecording ? "Listening..." : "Start video for captions.")}
-      </pre>
-      
-      <div className="mt-auto pt-2 sm:pt-3 border-t border-gray-700">
-        <input 
-          type="text" 
-          placeholder="" 
-          disabled 
-          className="w-full p-2 sm:p-2.5 bg-gray-700/70 border border-gray-600 rounded-md sm:rounded-lg text-xs sm:text-sm placeholder-gray-500 focus:ring-1 sm:focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none" 
-        />
+      {/* Highlighted Box for the Latest Subtitle */}
+      <div className="w-full p-3 sm:p-4 bg-gray-900/50 border border-cyan-500/30 rounded-lg min-h-[60px] flex items-center justify-center animate-fade-in">
+        <p className="text-center font-mono font-bold text-lg text-cyan-300 break-words">
+          {displayText}
+        </p>
       </div>
     </div>
   );

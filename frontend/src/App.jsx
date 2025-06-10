@@ -9,6 +9,7 @@ import UserMode2Processor from './components/UserMode2Processor';
 import DeveloperAnalytics from './components/DeveloperAnalytics';
 import MediaPipeOverlay from './components/MediaPipeOverlay';
 import WindowSizeSelector from './components/WindowSizeSelector';
+import HistoryList from './components/HistoryList';
 import useVideoStream from './hooks/useVideoStream';
 import useMediaPipe from './hooks/useMediaPipe';
 import { socket } from './socket';
@@ -26,6 +27,7 @@ function App() {
   const [results, setResults] = useState(null);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [devStats, setDevStats] = useState({ buffer: 0 });
+  const [predictionHistory, setPredictionHistory] = useState([]);
 
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -54,8 +56,19 @@ function App() {
 
     function onPrediction(data) {
       if (modeRef.current === 'developer-mode-1') {
-        setSubtitles(prev => `${prev}\n> ${data.prediction} (${parseFloat(data.confidence).toFixed(2)})`);
-        setAccuracy(parseFloat(data.confidence) * 100);
+        
+        // Create a new prediction object, matching the format for HistoryList
+        const newPrediction = {
+          prediction: data.prediction,
+          confidence: parseFloat(data.confidence),
+          timestamp: new Date().toLocaleTimeString() // Add a timestamp
+        };
+
+        // Add the new object to our history array
+        setPredictionHistory(prevHistory => [newPrediction, ...prevHistory]);
+
+        // Continue to update the accuracy from the latest prediction
+        setAccuracy(newPrediction.confidence * 100);
       }
     }
 
@@ -157,6 +170,7 @@ const onMediaPipeResults = useCallback((results) => {
           )
         );
       case 'developer-mode-1':
+        const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
         return (
           <>
             <div className="flex-grow flex items-center justify-center p-1.5 sm:p-2 md:p-3 lg:p-4 bg-black/50 relative md:rounded-l-xl">
@@ -172,11 +186,15 @@ const onMediaPipeResults = useCallback((results) => {
               />
               <div className="h-64 sm:h-72 md:h-full">
                 <SubtitleDisplay
-                  subtitles={subtitles}
+                  latestPrediction={latestPrediction}
                   isRecording={isRecording}
                   accuracy={accuracy}
                   showAccuracy={true}
                 />
+
+              </div>
+              <div className="flex-grow min-h-0">
+                <HistoryList history={predictionHistory} />
               </div>
             </div>
           </>

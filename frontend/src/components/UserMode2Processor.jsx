@@ -1,10 +1,8 @@
-// src/components/UserMode2Processor.js
-
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import SubtitleDisplay from './SubtitleDisplay';
 
-const SERVER_URL = 'http://localhost:5000'; 
+const SERVER_URL = 'http://localhost:5000';
 const WEBSOCKET_URL = SERVER_URL;
 
 function UserMode2Processor({ videoFile }) {
@@ -101,10 +99,12 @@ function UserMode2Processor({ videoFile }) {
     }
     // Handle error case
     if (videoLoadError) {
-       return <div className="text-red-400">Could not load video preview.</div>;
+        return <div className="text-red-400">Could not load video preview.</div>;
     }
     return null;
   };
+
+  const topPrediction = prediction ? { prediction } : null;
 
   return (
     <>
@@ -123,9 +123,10 @@ function UserMode2Processor({ videoFile }) {
           {/* Display the real-time status message from the backend */}
           <p className="text-sm text-gray-400">{statusMessage}</p>
         </div>
-        <div className="flex-grow">
+        {/* FIX: Removed flex-grow from the container below */}
+        <div>
           <SubtitleDisplay
-            subtitles={prediction ? `Prediction: ${prediction}` : 'Awaiting prediction...'}
+            latestPrediction={topPrediction}
             accuracy={probabilities && prediction ? parseFloat(probabilities[prediction]) * 100 : 0}
             showAccuracy={!!prediction}
             isRecording={isProcessing}
