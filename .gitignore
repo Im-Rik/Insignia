@@ -3,9 +3,12 @@ app.py
 # Ignore only these two folders inside backend/server_1
 backend/server_1/converted_videos/
 backend/server_1/temp_videos/
+backend/server_3/debug_clips/
 
 # But keep everything else in server_1, including app.py
 !backend/server_1/
 !backend/server_1/app.py
 !backend/server_2/
 !backend/server_2/app.py
+!backend/server_3/
+!backend/server_3/app.py

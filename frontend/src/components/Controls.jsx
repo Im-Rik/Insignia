@@ -16,9 +16,14 @@ const IconStart = () => (
 const IconStop = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
 );
+const IconRecordNew = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M15.322 4.688a2.25 2.25 0 013.182 3.182l-8.66 8.66-3.536.252a.75.75 0 01-.815-.815l.252-3.536 8.66-8.66zM13.5 7.5a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+    </svg>
+);
 
 // --- The Main Controls Component ---
-function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVideo, onClearUpload }) {
+function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVideo, onClearUpload, isEditorActive, onResetEditor }) {
     
     const modes = [
         { value: 'user-mode-1', label: 'Live', icon: <IconUser /> },
@@ -80,34 +85,54 @@ function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVi
 
             {/* --- Action Buttons (No Changes Here) --- */}
             <div className="flex-shrink-0 flex items-center gap-3">
-                {mode === 'user-mode-2' && uploadedVideo && (
+    {(() => {
+        // Case 1: Handle the "Upload" mode
+        if (mode === 'user-mode-2') {
+            return uploadedVideo ? (
+                <button
+                    onClick={onClearUpload}
+                    className="px-4 py-2 bg-gray-700 text-gray-300 font-medium rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition duration-200 text-sm"
+                >
+                    Clear Video
+                </button>
+            ) : null;
+        }
+
+        // Case 2: Handle our special "Dev 2" editor mode
+        if (mode === 'developer-mode-2' && isEditorActive) {
+                // When the editor is active, show the "Record New" button
+                return (
                     <button
-                        onClick={onClearUpload}
-                        className="px-4 py-2 bg-gray-700 text-gray-300 font-medium rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition duration-200 text-sm"
+                        onClick={onResetEditor}
+                        className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 transition duration-200"
                     >
-                        Clear Video
+                        <IconRecordNew />
+                        <span>Record New</span>
                     </button>
-                )}
-                {mode !== 'user-mode-2' && (
-                    !isRecording ? (
-                        <button
-                            onClick={onStart}
-                            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-70 text-sm"
-                        >
-                            <IconStart />
-                            <span>Start Video</span>
-                        </button>
-                    ) : (
-                        <button
-                            onClick={onStop}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-70 text-sm"
-                        >
-                            <IconStop />
-                            <span>Stop Video</span>
-                        </button>
-                    )
-                )}
-            </div>
+                );
+        }
+
+        // Case 3: For all other situations (Live, Dev 1, and the initial Dev 2 screen)
+        // show the normal Start/Stop button.
+        return !isRecording ? (
+            <button
+                onClick={onStart}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-70 text-sm"
+            >
+                <IconStart />
+                <span>Start Video</span>
+            </button>
+        ) : (
+            <button
+                onClick={onStop}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-70 text-sm"
+            >
+                <IconStop />
+                <span>Stop Video</span>
+            </button>
+                );
+                })()}
+            </div>  
         </div>
     );
 }
