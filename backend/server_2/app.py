@@ -142,4 +142,4 @@ def handle_live_keypoints(kps):
 if __name__ == '__main__':
     print("🚀 Starting Flask-SocketIO server with real-time smoothing...")
     # use_reloader=False is important to prevent the model from loading twice in debug mode
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5010, debug=True, use_reloader=False)

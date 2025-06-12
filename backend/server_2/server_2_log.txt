@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "D:\Downloads\Insignia\backend\server_2\app.py", line 43, in <module>
+    print("\u231b Loading model and weights...")
+  File "C:\Users\SOURIK\AppData\Local\Programs\Python\Python310\lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+UnicodeEncodeError: 'charmap' codec can't encode character '\u231b' in position 0: character maps to <undefined>
