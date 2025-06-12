@@ -1,3 +1,5 @@
+//components/Controls.jsx
+
 import React, { useState, useEffect, useRef, createRef } from 'react';
 
 // --- Self-Contained SVG Icons (No Changes Here) ---
@@ -30,6 +32,7 @@ function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVi
         { value: 'user-mode-2', label: 'Upload', icon: <IconUpload /> },
         { value: 'developer-mode-1', label: 'Dev', icon: <IconDev /> },
         { value: 'developer-mode-2', label: 'Dev 2', icon: <IconDev /> },
+        { value: 'developer-mode-3', label: 'Dev 3', icon: <IconDev /> },
     ];
 
     // **THE FIX**: Create an array of refs, one for each button.
@@ -100,6 +103,19 @@ function Controls({ isRecording, onStart, onStop, mode, onModeChange, uploadedVi
 
         // Case 2: Handle our special "Dev 2" editor mode
         if (mode === 'developer-mode-2' && isEditorActive) {
+                // When the editor is active, show the "Record New" button
+                return (
+                    <button
+                        onClick={onResetEditor}
+                        className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-700 transition duration-200"
+                    >
+                        <IconRecordNew />
+                        <span>Record New</span>
+                    </button>
+                );
+        }
+
+        if (mode === 'developer-mode-3' && isEditorActive) {
                 // When the editor is active, show the "Record New" button
                 return (
                     <button

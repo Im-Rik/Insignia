@@ -1,4 +1,4 @@
-// App.jsx (Final Corrected Version)
+// App.jsx (Final Corrected Version with Optimized Socket Handling)
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import VideoDisplay from './components/VideoDisplay';
@@ -6,7 +6,8 @@ import SubtitleDisplay from './components/SubtitleDisplay';
 import Controls from './components/Controls';
 import VideoUploader from './components/VideoUploader';
 import UserMode2Processor from './components/UserMode2Processor';
-import Recorder2Editor from './components/Recorder2Editor'
+import Recorder2Editor from './components/Recorder2Editor';
+import AutomatedEditor from './components/AutomatedEditor';
 import DeveloperAnalytics from './components/DeveloperAnalytics';
 import MediaPipeOverlay from './components/MediaPipeOverlay';
 import HistoryList from './components/HistoryList';
@@ -56,63 +57,76 @@ function App() {
         }
     }, [mode]);
 
-    // --- EFFECT 1: Manages the WebSocket connection. ---
+    // =================================================================================
+    // --- UPDATED EFFECT: Manages the WebSocket connection based on the current mode. ---
+    // =================================================================================
     useEffect(() => {
-        // If the socket isn't already connected, connect it.
-        if (!socket.connected) {
-            socket.connect();
-        }
+        const socketModes = ['user-mode-1', 'developer-mode-1'];
 
-        function onConnect() {
-            console.log("✅✅✅ 'connect' event received from socket!");
-            setIsConnected(true);
-        }
+        // Connect only if the current mode requires a socket.
+        if (socketModes.includes(mode)) {
+            console.log(`Entering a socket-based mode ('${mode}'). Connecting...`);
+            if (!socket.connected) {
+                socket.connect();
+            }
 
-        function onDisconnect() {
-            console.log("❌❌❌ 'disconnect' event received from socket!");
-            setIsConnected(false);
-        }
+            // --- Define Listeners ---
+            const onConnect = () => {
+                console.log("✅✅✅ 'connect' event received!");
+                setIsConnected(true);
+            };
 
-        function onPrediction(data) {
-            if (modeRef.current === 'developer-mode-1' || modeRef.current === 'user-mode-1') {
-                let roundTripTime = 0;
-                if (lastKeypointTime.current > 0) {
-                    roundTripTime = performance.now() - lastKeypointTime.current;
-                }
-                const newPrediction = {
-                    prediction: data.prediction,
-                    confidence: parseFloat(data.confidence),
-                    timestamp: new Date().getTime(),
-                    time: new Date().toLocaleTimeString()
-                };
-                setPredictionHistory(prevHistory => {
-                    const updatedHistory = [newPrediction, ...prevHistory].slice(0, 50);
-                    let currentPPS = 0;
-                    if (updatedHistory.length > 10) {
-                        const timeSpan = (updatedHistory[0].timestamp - updatedHistory[9].timestamp) / 1000;
-                        if (timeSpan > 0) { currentPPS = 10 / timeSpan; }
+            const onDisconnect = () => {
+                console.log("❌❌❌ 'disconnect' event received!");
+                setIsConnected(false);
+            };
+
+            const onPrediction = (data) => {
+                 if (modeRef.current === 'developer-mode-1' || modeRef.current === 'user-mode-1') {
+                    let roundTripTime = 0;
+                    if (lastKeypointTime.current > 0) {
+                        roundTripTime = performance.now() - lastKeypointTime.current;
                     }
-                    setDevStats(prev => ({ ...prev, latency: roundTripTime, pps: currentPPS }));
-                    return updatedHistory;
-                });
-                setAccuracy(newPrediction.confidence * 100);
+                    const newPrediction = {
+                        prediction: data.prediction,
+                        confidence: parseFloat(data.confidence),
+                        timestamp: new Date().getTime(),
+                        time: new Date().toLocaleTimeString()
+                    };
+                    setPredictionHistory(prevHistory => {
+                        const updatedHistory = [newPrediction, ...prevHistory].slice(0, 50);
+                        let currentPPS = 0;
+                        if (updatedHistory.length > 10) {
+                            const timeSpan = (updatedHistory[0].timestamp - updatedHistory[9].timestamp) / 1000;
+                            if (timeSpan > 0) { currentPPS = 10 / timeSpan; }
+                        }
+                        setDevStats(prev => ({ ...prev, latency: roundTripTime, pps: currentPPS }));
+                        return updatedHistory;
+                    });
+                    setAccuracy(newPrediction.confidence * 100);
+                }
+            };
+
+            // --- Attach Listeners ---
+            socket.on('connect', onConnect);
+            socket.on('disconnect', onDisconnect);
+            socket.on('prediction_result', onPrediction);
+
+            // --- Cleanup function for when mode changes or component unmounts ---
+            return () => {
+                console.log(`Cleaning up listeners for mode: '${mode}'`);
+                socket.off('connect', onConnect);
+                socket.off('disconnect', onDisconnect);
+                socket.off('prediction_result', onPrediction);
+            };
+        } else {
+            // If we are in a mode that does NOT use the socket, ensure it's disconnected.
+            if (socket.connected) {
+                console.log(`Entering a non-socket mode ('${mode}'). Disconnecting...`);
+                socket.disconnect();
             }
         }
-
-        socket.on('connect', onConnect);
-        socket.on('disconnect', onDisconnect);
-        socket.on('prediction_result', onPrediction);
-
-        // This cleanup function now ONLY removes the listeners.
-        // It does NOT disconnect the socket, allowing the connection to be stable.
-        return () => {
-            console.log("Cleaning up App.jsx socket listeners.");
-            socket.off('connect', onConnect);
-            socket.off('disconnect', onDisconnect);
-            socket.off('prediction_result', onPrediction);
-            // The socket.disconnect(); line has been removed.
-        };
-    }, []); // Empty dependency array is correct and intentional.
+    }, [mode]); // Dependency array ensures this runs when `mode` changes.
 
 
     const handleVideoUpload = useCallback((file) => setUploadedVideo(file), []);
@@ -127,6 +141,8 @@ function App() {
                 const h = videoRef.current.videoHeight;
                 if (w > 0 && h > 0) { newResolution = `${w}x${h}`; }
             }
+            
+            // This logic now works perfectly, as `isConnected` will be false in non-socket modes.
             const isLiveMode = mode === 'developer-mode-1' || mode === 'user-mode-1';
             if (isLiveMode && isRecording && isConnected) {
                 const keypoints = extractKeypoints(results);
@@ -153,7 +169,7 @@ function App() {
     const enableMediaPipe = useMemo(() => isRecording && (mode === 'developer-mode-1' || mode === 'user-mode-1'), [isRecording, mode]);
     useMediaPipe(videoRef, enableMediaPipe, onMediaPipeResults);
 
-    // --- Render logic ---
+    // --- Render logic (No changes needed here) ---
     const renderContent = useMemo(() => {
         const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
         switch (mode) {
@@ -192,6 +208,15 @@ function App() {
             case 'developer-mode-2':
                 return (
                     <Recorder2Editor
+                        ref={editorRef}
+                        videoRef={videoRef}
+                        isRecording={isRecording}
+                        onEditorStateChange={setIsEditorActive}
+                    />
+                );
+            case 'developer-mode-3':
+                return (
+                    <AutomatedEditor
                         ref={editorRef}
                         videoRef={videoRef}
                         isRecording={isRecording}

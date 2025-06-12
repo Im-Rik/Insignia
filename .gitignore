@@ -4,6 +4,7 @@ app.py
 backend/server_1/converted_videos/
 backend/server_1/temp_videos/
 backend/server_3/debug_clips/
+backend/helpers/processed_clips/
 
 # But keep everything else in server_1, including app.py
 !backend/server_1/
@@ -12,3 +13,5 @@ backend/server_3/debug_clips/
 !backend/server_2/app.py
 !backend/server_3/
 !backend/server_3/app.py
+!backend/helpers/
+!backend/server_3/ss_server.py
