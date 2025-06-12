@@ -104,7 +104,7 @@ const Recorder2Editor = forwardRef(({ videoRef, isRecording, onEditorStateChange
             formData.append('segments', JSON.stringify(segments.map(({ id, start, end }) => ({ id, start, end }))));
 
             // 3. POST to the `/classify` endpoint to start the job
-            const response = await fetch('http://localhost:5000/classify', {
+            const response = await fetch('http://localhost:5020/classify', {
                 method: 'POST',
                 body: formData,
             });
@@ -118,7 +118,7 @@ const Recorder2Editor = forwardRef(({ videoRef, isRecording, onEditorStateChange
             setStatusMessage(`⏳ Classification started (Job ID: ${job_id}). Waiting for results...`);
 
             // 4. Open a Server-Sent Events (SSE) connection to stream results
-            const es = new EventSource(`http://localhost:5000/stream/${job_id}`);
+            const es = new EventSource(`http://localhost:5020/stream/${job_id}`);
             eventSourceRef.current = es; // Store the connection in the ref
 
             es.onmessage = (event) => {

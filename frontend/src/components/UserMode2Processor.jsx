@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import SubtitleDisplay from './SubtitleDisplay';
+import Loader from './Loader';
 
 const SERVER_URL = 'http://localhost:5000';
 const WEBSOCKET_URL = SERVER_URL;
@@ -74,15 +75,7 @@ function UserMode2Processor({ videoFile }) {
   const renderVideoPlayer = () => {
     // Show spinner if we don't have a URL yet AND we are processing
     if (!playableVideoUrl && isProcessing) {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900/50 rounded-xl">
-          <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-cyan-500 mb-4"></div>
-          <p className="text-white font-semibold">{statusMessage}</p>
-          <div className="w-3/4 h-2 bg-gray-600 rounded-full mt-4 overflow-hidden">
-            <div className="h-full bg-cyan-500" style={{ width: `${progress}%` }}></div>
-          </div>
-        </div>
-      );
+      return  <Loader message={statusMessage} progress={progress} />;
     }
     // Show the video once the URL is available
     if (playableVideoUrl) {
