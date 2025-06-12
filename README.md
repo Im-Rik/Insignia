@@ -1,5 +1,3 @@
-Here’s a rewritten, professional and clear version of your README instructions:
-
 ---
 
 ## Prerequisites
