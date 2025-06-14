@@ -1,4 +1,4 @@
-# app.py
+# app.py (Simplified)
 
 import os
 import uuid
@@ -7,32 +7,28 @@ import numpy as np
 import torch
 import torch.nn as nn
 import mediapipe as mp
-import ffmpeg
-import multiprocessing
 from threading import Thread
-from flask import Flask, send_from_directory, request
+import multiprocessing
+from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 
 # ---------- Basic App Setup ----------------------
 app = Flask(__name__)
-# Use a specific origin for production, but wildcard is fine for local dev
 CORS(app, resources={r"/*": {"origins": "*"}}) 
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
-    max_http_buffer_size=50 * 1024 * 1024
+    max_http_buffer_size=50 * 1024 * 1024 # Allow large file uploads
 )
 
-# --- Configuration and Helper functions ---
+# --- Configuration and Helper functions (No changes here) ---
 WEIGHTS_PATH = "sign_recognizer_best.pth"
 SEQ_LEN = 60
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-TEMP_FOLDER = "temp_videos"
-CONVERTED_FOLDER = "converted_videos"
+TEMP_FOLDER = "temp_videos" # Only one temp folder is needed now
 os.makedirs(TEMP_FOLDER, exist_ok=True)
-os.makedirs(CONVERTED_FOLDER, exist_ok=True)
 mp_holistic = mp.solutions.holistic
 
 def extract_all_keypoints(res):
@@ -63,7 +59,7 @@ try:
 except Exception as e:
     print(f"❌ Error loading model: {e}"); model, classes = None, []
 
-# --- MODIFIED: Child process to emit detailed status updates ---
+# --- Child process to run prediction (No major changes here) ---
 def run_prediction(video_path, sid, q):
     try:
         q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Sampling video frames...'}})
@@ -76,17 +72,17 @@ def run_prediction(video_path, sid, q):
         cap.release()
         frames = sample_n(frames, SEQ_LEN)
         
-        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Extracting keypoints from frames...'}})
+        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Extracting keypoints...', 'progress': 25}})
         kps = []
         with mp_holistic.Holistic() as holo:
             for i, frm in enumerate(frames):
                 res = holo.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
                 kps.append(extract_all_keypoints(res))
-                # NEW: Send progress update every 10 frames
                 if (i + 1) % 10 == 0:
-                     q.put({'sid': sid, 'event': 'status_update', 'data': {'message': f'Processed {i+1}/{len(frames)} frames...', 'progress': (i+1)/len(frames) * 100}})
+                       progress = 25 + int(((i+1)/len(frames)) * 50) # Keypoint extraction is 50% of the work
+                       q.put({'sid': sid, 'event': 'status_update', 'data': {'message': f'Processed {i+1}/{len(frames)} frames...', 'progress': progress}})
         
-        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Running model inference...'}})
+        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Running model inference...', 'progress': 85}})
         seq = torch.from_numpy(np.stack(kps)).unsqueeze(0).to(DEVICE)
         with torch.no_grad():
             probs = torch.softmax(model(seq), 1)[0].cpu().numpy()
@@ -100,27 +96,12 @@ def run_prediction(video_path, sid, q):
     except Exception as e:
         q.put({'sid': sid, 'event': 'prediction_error', 'data': {'error': str(e)}})
     finally:
+        # Clean up the temporary file
         if os.path.exists(video_path):
             os.remove(video_path)
 
-# --- MODIFIED: Child process to emit detailed status updates ---
-def run_conversion(input_path, output_path, sid, q):
-    try:
-        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Converting video for web preview...'}})
-        ffmpeg.input(input_path).output(output_path, vcodec='libx264', acodec='aac', pix_fmt='yuv420p').run(overwrite_output=True, quiet=True)
-        file_name = os.path.basename(output_path)
-        video_url = f"/videos/{file_name}"
-        q.put({
-            'sid': sid, 'event': 'video_ready',
-            'data': {'url': video_url}
-        })
-    except Exception as e:
-        q.put({'sid': sid, 'event': 'prediction_error', 'data': {'error': f'Video conversion failed: {e}'}})
-
-
-@app.route('/videos/<filename>')
-def serve_video(filename):
-    return send_from_directory(CONVERTED_FOLDER, filename)
+# --- REMOVED: Video conversion function is no longer needed ---
+# --- REMOVED: /videos/<filename> route is no longer needed ---
 
 @socketio.on('connect')
 def handle_connect():
@@ -128,25 +109,25 @@ def handle_connect():
 
 @socketio.on('predict_video')
 def handle_video_prediction(video_data):
+    """Receives video, saves it temporarily, and starts the prediction process."""
     sid = request.sid
     print(f"▶️ Received video for prediction from client {sid}...")
     
-    original_video_path = os.path.join(TEMP_FOLDER, f"{uuid.uuid4()}.mp4")
-    with open(original_video_path, 'wb') as f: f.write(video_data)
+    # Save the uploaded video to a temporary file
+    temp_video_path = os.path.join(TEMP_FOLDER, f"{uuid.uuid4()}.mp4")
+    with open(temp_video_path, 'wb') as f:
+        f.write(video_data)
 
-    converted_video_path = os.path.join(CONVERTED_FOLDER, os.path.basename(original_video_path))
-    
-    pred_process = multiprocessing.Process(target=run_prediction, args=(original_video_path, sid, q))
+    # Start ONLY the prediction process in the background
+    pred_process = multiprocessing.Process(target=run_prediction, args=(temp_video_path, sid, q))
     pred_process.start()
-    
-    conv_process = multiprocessing.Process(target=run_conversion, args=(original_video_path, converted_video_path, sid, q))
-    conv_process.start()
 
 @socketio.on('disconnect')
 def handle_disconnect():
     print(f"❌ Client disconnected: {request.sid}")
 
 def queue_listener(q):
+    """Listens to the queue and emits results back to the correct client."""
     while True:
         try:
             message = q.get()
@@ -163,5 +144,5 @@ if __name__ == '__main__':
     listener = Thread(target=queue_listener, args=(q,))
     listener.daemon = True
     listener.start()
-    print("🚀 Starting Flask-SocketIO server with Queue listener...")
+    print("🚀 Starting Flask-SocketIO server (Prediction-Only Mode)...")
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True, use_reloader=False)
