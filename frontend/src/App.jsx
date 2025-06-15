@@ -299,214 +299,157 @@ function App() {
   const renderContent = useMemo(() => {
     const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
 
-    switch (mode) {
-      case 'user-mode-1':
-        return (
-          <div className="flex flex-col h-full w-full relative">
-            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+    // Consolidate layout for user-mode-1 and developer-mode-1
+    if (mode === 'user-mode-1' || mode === 'developer-mode-1') {
+      return (
+        <div className="flex flex-col lg:flex-row h-full w-full relative gap-4">
+          {/* === START: MAIN CONTENT BLOCK (VIDEO + SIDEBAR) === */}
+          <div className="flex-1 flex flex-col min-w-0"> {/* Flex-1 and min-w-0 to allow shrinking */}
+            {/* Video and Sidebar Container */}
+            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden rounded-xl border border-gray-700/50 bg-gray-800/70">
               {/* Video Section */}
-              <div className="flex-grow flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50 relative lg:rounded-tl-xl min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
+              <div className="flex-grow flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50 relative lg:rounded-l-xl min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
                 <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
+                {showMediaPipe && results && (
+                  <MediaPipeOverlay results={results} videoRef={videoRef} isProcessing={isRecording} />
+                )}
               </div>
 
-              {/* Sidebar Section - Always visible on desktop, conditionally on mobile */}
-              <div className="w-full lg:w-80 xl:w-96 lg:flex-shrink-0 bg-gray-800/80 lg:border-l border-gray-700/60 flex flex-col lg:rounded-tr-xl overflow-hidden">
-                <div className="h-auto lg:h-full flex flex-col">
-                  <SubtitleDisplay
-                    latestPrediction={latestPrediction}
-                    isRecording={isRecording}
-                    accuracy={accuracy}
-                    showAccuracy={true}
-                  />
-                  <div className="flex-grow p-3 sm:p-4 border-t border-gray-700/60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 min-h-[120px] sm:min-h-[150px]">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-sm sm:text-base font-semibold text-gray-300 uppercase tracking-wider">
-                        Your Message
-                      </h4>
-                      <button
-                        onClick={handleClearSymptoms}
-                        className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-200 transition-colors duration-200 disabled:opacity-50 px-2 py-1"
-                        disabled={selectedSymptoms.length === 0}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 p-3 bg-black/20 rounded-lg min-h-[5rem] sm:min-h-[6rem]">
-                      {selectedSymptoms.length > 0 ? (
-                        selectedSymptoms.map((s, index) => (
-                          <div
-                            key={index}
-                            className={`flex items-center gap-1.5 bg-gray-600/50 px-2.5 py-1.5 rounded-full text-sm sm:text-base transform transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer animate-fadeIn ${
-                              recentlySelected === s.name ? 'animate-pulse-once ring-2 ring-cyan-400 ring-offset-2 ring-offset-gray-800' : ''
-                            }`}
-                            style={{
-                              animation: 'fadeIn 0.3s ease-out',
-                              animationDelay: `${index * 0.05}s`,
-                              animationFillMode: 'both'
-                            }}
-                          >
-                            <span className="text-base sm:text-lg">{s.emoji}</span>
-                            <span className="text-gray-200">{s.name}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-400 text-sm sm:text-base p-3 text-center w-full">
-                          Select symptoms below to build your message.
-                        </p>
-                      )}
+              {/* Sidebar Section (Captions & Message or Developer Analytics) */}
+              <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 bg-gray-800/80 lg:border-l border-gray-700/60 flex flex-col lg:rounded-r-xl overflow-hidden">
+                {mode === 'user-mode-1' ? (
+                  <div className="h-auto lg:h-full flex flex-col">
+                    <SubtitleDisplay
+                      latestPrediction={latestPrediction}
+                      isRecording={isRecording}
+                      accuracy={accuracy}
+                      showAccuracy={true}
+                    />
+                    <div className="flex-grow p-3 sm:p-4 border-t border-gray-700/60 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 min-h-[120px] sm:min-h-[150px]">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-300 uppercase tracking-wider">
+                          Your Message
+                        </h4>
+                        <button
+                          onClick={handleClearSymptoms}
+                          className="text-xs sm:text-sm text-cyan-400 hover:text-cyan-200 transition-colors duration-200 disabled:opacity-50 px-2 py-1"
+                          disabled={selectedSymptoms.length === 0}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 p-3 bg-black/20 rounded-lg min-h-[5rem] sm:min-h-[6rem]">
+                        {selectedSymptoms.length > 0 ? (
+                          selectedSymptoms.map((s, index) => (
+                            <div
+                              key={index}
+                              className={`flex items-center gap-1.5 bg-gray-600/50 px-2.5 py-1.5 rounded-full text-sm sm:text-base transform transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer animate-fadeIn ${
+                                recentlySelected === s.name ? 'animate-pulse-once ring-2 ring-cyan-400 ring-offset-2 ring-offset-gray-800' : ''
+                              }`}
+                              style={{
+                                animation: 'fadeIn 0.3s ease-out',
+                                animationDelay: `${index * 0.05}s`,
+                                animationFillMode: 'both'
+                              }}
+                            >
+                              <span className="text-base sm:text-lg">{s.emoji}</span>
+                              <span className="text-gray-200">{s.name}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-gray-400 text-sm sm:text-base p-3 text-center w-full">
+                            Select symptoms to build your message.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="h-auto lg:h-1/2 flex-shrink-0 overflow-y-auto border-b border-gray-700/60 scrollbar-thin scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
+                      <DeveloperAnalytics
+                        accuracy={accuracy}
+                        isRecording={isRecording}
+                        isConnected={isConnected}
+                        bufferSize={devStats.buffer}
+                        latency={devStats.latency}
+                        pps={devStats.pps}
+                        fps={fps}
+                        videoResolution={devStats.videoResolution}
+                      />
+                    </div>
+                    <div className="flex-shrink-0">
+                      <SubtitleDisplay
+                        latestPrediction={latestPrediction}
+                        isRecording={isRecording}
+                        accuracy={accuracy}
+                        showConfidence={false}
+                      />
+                    </div>
+                    <div className="flex-grow min-h-[150px] sm:min-h-[200px] lg:min-h-0">
+                      <HistoryList history={predictionHistory} />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-
-            {/* Desktop Symptom Selector - Always visible on desktop */}
-            <div className="hidden lg:block">
-              <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={false} />
-            </div>
-
-            {/* Mobile Symptom Panel - Slide from bottom */}
-            <div className={`lg:hidden fixed inset-x-0 bottom-0 transform transition-transform duration-300 ease-in-out z-50 ${
-              showSymptomPanel ? 'translate-y-0' : 'translate-y-full'
-            }`}>
-              <div className="bg-gray-800 border-t border-gray-700 shadow-2xl">
-                <div className="p-2 border-b border-gray-700 flex justify-between items-center">
-                  <h3 className="text-sm font-semibold text-gray-300">Select Symptoms</h3>
-                  <button
-                    onClick={() => setShowSymptomPanel(false)}
-                    className="text-gray-400 hover:text-gray-200 p-1"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="max-h-[50vh] overflow-y-auto">
-                  <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={true} />
-                </div>
+          </div>
+          {/* === END: MAIN CONTENT BLOCK === */}
+          
+          {/* === START: DETACHED SYMPTOM SELECTOR COLUMN (Desktop) === */}
+          {mode !== 'doctor-mode' && (
+            <div className="hidden lg:flex w-40 flex-shrink-0">
+              <div className="flex flex-col h-full w-full bg-gray-800/70 rounded-xl border border-gray-700/50 overflow-hidden">
+                <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={false} />
               </div>
             </div>
+          )}
+          {/* === END: DETACHED SYMPTOM SELECTOR COLUMN === */}
+        </div>
+      );
+    }
 
-            {/* Mobile Toggle Button for Symptoms */}
-            <button
-              onClick={() => setShowSymptomPanel(!showSymptomPanel)}
-              className={`lg:hidden fixed bottom-4 right-4 bg-cyan-600 hover:bg-cyan-700 text-white p-3 rounded-full shadow-lg z-40 transition-all duration-200 ${
-                showSymptomPanel ? 'scale-0' : 'scale-100'
-              }`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-
-            {/* Mobile Toast Notification for Symptom Selection */}
-            {recentlySelected && (
-              <div
-                className="lg:hidden fixed top-20 left-1/2 transform -translate-x-1/2 bg-cyan-600 text-white px-4 py-2 rounded-full shadow-lg z-50"
-                style={{
-                  animation: 'fadeIn 0.3s ease-out, fadeOut 0.3s ease-out 1.7s forwards'
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm font-medium">Added: {recentlySelected}</span>
+    switch (mode) {
+      case 'user-mode-2':
+      case 'developer-mode-2':
+      case 'developer-mode-3':
+        return (
+          <div className="flex flex-col lg:flex-row h-full w-full relative gap-4">
+            <div className="flex-1 flex flex-col min-w-0">
+              {mode === 'user-mode-2' && (
+                uploadedVideo ? (
+                  <UserMode2Processor videoFile={uploadedVideo} onReset={() => setUploadedVideo(null)} />
+                ) : (
+                  <div className="flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8">
+                    <VideoUploader onFileSelect={handleVideoUpload} />
+                  </div>
+                )
+              )}
+              {mode === 'developer-mode-2' && (
+                <Recorder2Editor
+                  ref={editorRef}
+                  videoRef={videoRef}
+                  isRecording={isRecording}
+                  onEditorStateChange={setIsEditorActive}
+                />
+              )}
+              {mode === 'developer-mode-3' && (
+                <AutomatedEditor
+                  ref={editorRef}
+                  videoRef={videoRef}
+                  isRecording={isRecording}
+                  onEditorStateChange={setIsEditorActive}
+                />
+              )}
+            </div>
+            {mode !== 'doctor-mode' && (
+              <div className="hidden lg:flex w-40 flex-shrink-0">
+                <div className="flex flex-col h-full w-full bg-gray-800/70 rounded-xl border border-gray-700/50 overflow-hidden">
+                  <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={false} />
                 </div>
               </div>
             )}
           </div>
-        );
-
-      case 'user-mode-2':
-        return uploadedVideo ? (
-          <UserMode2Processor videoFile={uploadedVideo} onReset={() => setUploadedVideo(null)} />
-        ) : (
-          <div className="flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8">
-            <VideoUploader onFileSelect={handleVideoUpload} />
-          </div>
-        );
-
-      case 'developer-mode-1':
-        return (
-          <div className="flex flex-col lg:flex-row h-full w-full">
-            {/* Video Section with MediaPipe Overlay */}
-            <div className="flex-grow flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50 relative lg:rounded-l-xl min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
-              <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
-              {showMediaPipe && results && (
-                <MediaPipeOverlay results={results} videoRef={videoRef} isProcessing={isRecording} />
-              )}
-            </div>
-
-            {/* Developer Analytics Sidebar - Responsive for mobile */}
-            <div className="w-full lg:w-80 xl:w-96 lg:flex-shrink-0 bg-gray-800/80 lg:border-l border-gray-700/60 flex flex-col lg:rounded-r-xl overflow-hidden">
-              {/* Analytics Section - Collapsible on mobile */}
-              <div className="h-auto lg:h-1/2 flex-shrink-0 overflow-y-auto border-b border-gray-700/60 scrollbar-thin scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500">
-                <details className="lg:hidden">
-                  <summary className="p-3 cursor-pointer text-sm font-semibold text-gray-300 hover:bg-gray-700/50">
-                    Developer Analytics
-                  </summary>
-                  <DeveloperAnalytics
-                    accuracy={accuracy}
-                    isRecording={isRecording}
-                    isConnected={isConnected}
-                    bufferSize={devStats.buffer}
-                    latency={devStats.latency}
-                    pps={devStats.pps}
-                    fps={fps}
-                    videoResolution={devStats.videoResolution}
-                  />
-                </details>
-                <div className="hidden lg:block">
-                  <DeveloperAnalytics
-                    accuracy={accuracy}
-                    isRecording={isRecording}
-                    isConnected={isConnected}
-                    bufferSize={devStats.buffer}
-                    latency={devStats.latency}
-                    pps={devStats.pps}
-                    fps={fps}
-                    videoResolution={devStats.videoResolution}
-                  />
-                </div>
-              </div>
-
-              {/* Subtitle Display - Always visible */}
-              <div className="flex-shrink-0">
-                <SubtitleDisplay
-                  latestPrediction={latestPrediction}
-                  isRecording={isRecording}
-                  accuracy={accuracy}
-                  showConfidence={false}
-                />
-              </div>
-
-              {/* History List - Always visible */}
-              <div className="flex-grow min-h-[150px] sm:min-h-[200px] lg:min-h-0">
-                <HistoryList history={predictionHistory} />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'developer-mode-2':
-        return (
-          <Recorder2Editor
-            ref={editorRef}
-            videoRef={videoRef}
-            isRecording={isRecording}
-            onEditorStateChange={setIsEditorActive}
-          />
-        );
-
-      case 'developer-mode-3':
-        return (
-          <AutomatedEditor
-            ref={editorRef}
-            videoRef={videoRef}
-            isRecording={isRecording}
-            onEditorStateChange={setIsEditorActive}
-          />
         );
 
       case 'doctor-mode':
@@ -540,7 +483,7 @@ function App() {
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="flex flex-col w-full h-full p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 max-w-screen-2xl mx-auto">
         {/* Main Content Area */}
-        <div className="flex flex-col flex-1 overflow-hidden rounded-lg md:rounded-xl shadow-xl md:shadow-2xl bg-gray-800/70 backdrop-blur-md border border-gray-700/50 mb-2 sm:mb-3 md:mb-4">
+        <div className="flex flex-col flex-1 overflow-hidden mb-2 sm:mb-3 md:mb-4">
           {renderContent}
         </div>
 
