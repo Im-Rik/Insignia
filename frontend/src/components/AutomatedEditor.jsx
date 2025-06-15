@@ -38,7 +38,8 @@ const formatTime = (timeInSeconds) => {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(4, '0')}`;
 };
 
-const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange }, ref) => {
+// --- CHANGE 1: Accept `selectedSymptoms` as a prop ---
+const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange, selectedSymptoms }, ref) => {
     const [editorMode, setEditorMode] = useState('welcome');
     const [videoSrc, setVideoSrc] = useState(null);
     const [originalBlob, setOriginalBlob] = useState(null);
@@ -46,11 +47,11 @@ const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [segments, setSegments] = useState([]);
-    const [isProcessing, setIsProcessing] = useState(false); // Used for classification stream
+    const [isProcessing, setIsProcessing] = useState(false);
     const [isSegmenting, setIsSegmenting] = useState(false);
     const [statusMessage, setStatusMessage] = useState('Record or upload a video to begin.');
     const [finalSentence, setFinalSentence] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false); // Used for sentence generation call
+    const [isGenerating, setIsGenerating] = useState(false);
     const mediaRecorderRef = useRef(null);
     const editorVideoRef = useRef(null);
     const timelineContainerRef = useRef(null);
@@ -129,16 +130,19 @@ const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange
         }
     };
 
-    // --- MODIFIED: This function is now manually triggered by the new button ---
+    // --- CHANGE 2: Use the `selectedSymptoms` prop to build the context ---
     const handleGenerateSentence = async () => {
         const glosses = segments
             .map(seg => seg.prediction)
-            .filter(p => p && p !== 'pending...'); // Get all successfully classified glosses
+            .filter(p => p && p !== 'pending...');
 
         if (glosses.length === 0) {
             setFinalSentence("Error: No classified words available to generate a sentence.");
             return;
         }
+
+        // Create context sentences from the passed-in prop
+        const context_sentences = selectedSymptoms.map(symptom => symptom.name);
 
         setIsGenerating(true);
         setFinalSentence('');
@@ -147,7 +151,7 @@ const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange
             const response = await fetch('http://localhost:5020/generate_sentence', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ glosses, context_sentences: [] })
+                body: JSON.stringify({ glosses, context_sentences }) // Send both glosses and context
             });
             if (!response.ok) {
                 const errorData = await response.json();
@@ -164,8 +168,6 @@ const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange
             setIsGenerating(false);
         }
     };
-    
-    // --- REMOVED: The useEffect that triggered generation automatically is gone ---
 
     const handleResetEditor = () => {
         if (videoSrc && videoSrc.startsWith('blob:')) URL.revokeObjectURL(videoSrc);
@@ -258,8 +260,6 @@ const AutomatedEditor = forwardRef(({ videoRef, isRecording, onEditorStateChange
                                     )) : ( <div className="text-gray-500 text-center mt-8 px-4">No segments found. Use 'Auto-Detect' to find them.</div> )}
                                 </div>
                                 
-                                {/* --- NEW: Final Sentence Box with Manual Trigger --- */}
-                                {/* This box appears after classification is no longer running and there are segments */}
                                 {segments.length > 0 && !isProcessing && (
                                     <div className="mt-4 p-3 rounded-md bg-gray-700/80 border-2 border-purple-500/50">
                                         <div className="flex justify-between items-center">

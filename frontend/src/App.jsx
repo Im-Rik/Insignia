@@ -128,6 +128,11 @@ function App() {
     modeRef.current = mode;
   }, [mode]);
 
+  useEffect(() => {
+    // This will log the state to your browser's developer console every time it changes.
+    console.log("APP.JSX STATE UPDATED:", selectedSymptoms.map(s => s.name));
+  }, [selectedSymptoms]);
+
   const showMediaPipe = useMemo(() => mode === 'developer-mode-1', [mode]);
 
   // Handler to switch from landing page to main app
@@ -136,18 +141,27 @@ function App() {
   }, []);
 
   // Symptom handlers
-  const handleSymptomSelect = useCallback((symptom) => {
-    setSelectedSymptoms(prevSymptoms => [...prevSymptoms, symptom]);
+  const handleSymptomSelect = useCallback((symptomToToggle) => {
+  setSelectedSymptoms(prevSymptoms => {
+    const isAlreadySelected = prevSymptoms.some(s => s.name === symptomToToggle.name);
 
-    // Set recently selected for animation
-    setRecentlySelected(symptom.name);
-    setTimeout(() => setRecentlySelected(null), 2000);
-
-    // Add a small haptic feedback for mobile devices if available
-    if (window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(50);
+    if (isAlreadySelected) {
+      // If already selected, filter it out to de-select
+      return prevSymptoms.filter(s => s.name !== symptomToToggle.name);
+    } else {
+      // If not selected, add it to the array
+      return [...prevSymptoms, symptomToToggle];
     }
-  }, []);
+  });
+
+  // This animation/feedback part can remain as is
+  setRecentlySelected(symptomToToggle.name);
+  setTimeout(() => setRecentlySelected(null), 2000);
+
+  if (window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(50);
+  }
+}, []);
 
   const handleClearSymptoms = useCallback(() => {
     setSelectedSymptoms([]);
@@ -296,6 +310,8 @@ function App() {
   useMediaPipe(videoRef, enableMediaPipe, onMediaPipeResults);
 
   // Memoized content based on the current mode
+ // --- REPLACE your entire renderContent function in App.jsx with this one ---
+
   const renderContent = useMemo(() => {
     const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
 
@@ -400,7 +416,11 @@ function App() {
           {mode !== 'doctor-mode' && (
             <div className="hidden lg:flex w-40 flex-shrink-0">
               <div className="flex flex-col h-full w-full bg-gray-800/70 rounded-xl border border-gray-700/50 overflow-hidden">
-                <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={false} />
+                <SymptomSelector
+                  onSymptomSelect={handleSymptomSelect}
+                  isMobile={false}
+                  selectedSymptoms={selectedSymptoms} // <-- THE FIX IS HERE
+                />
               </div>
             </div>
           )}
@@ -439,13 +459,18 @@ function App() {
                   videoRef={videoRef}
                   isRecording={isRecording}
                   onEditorStateChange={setIsEditorActive}
+                  selectedSymptoms={selectedSymptoms}
                 />
               )}
             </div>
             {mode !== 'doctor-mode' && (
               <div className="hidden lg:flex w-40 flex-shrink-0">
                 <div className="flex flex-col h-full w-full bg-gray-800/70 rounded-xl border border-gray-700/50 overflow-hidden">
-                  <SymptomSelector onSymptomSelect={handleSymptomSelect} isMobile={false} />
+                  <SymptomSelector
+                    onSymptomSelect={handleSymptomSelect}
+                    isMobile={false}
+                    selectedSymptoms={selectedSymptoms} // <-- AND THE FIX IS HERE
+                  />
                 </div>
               </div>
             )}
@@ -472,7 +497,7 @@ function App() {
   }, [mode, isRecording, uploadedVideo, accuracy, showMediaPipe, results, isConnected,
     predictionHistory, devStats, fps, selectedSymptoms, handleClearSymptoms,
     handleSymptomSelect, handleVideoUpload, videoRef, isEditorActive, showSymptomPanel, recentlySelected]);
-
+    
   // Show landing page if needed
   if (showLanding) {
     return <Landing onTryNow={handleTryNow} />;
