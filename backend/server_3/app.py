@@ -1,5 +1,3 @@
-# app.py (Classification Server + Groq LLM Integration)
-
 import os
 import uuid
 import cv2
@@ -13,21 +11,18 @@ import traceback
 import json
 import queue
 import threading
-import groq  # Import the Groq library
+import groq
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-# =============================================================================
-# 1. FLASK APPLICATION AND GROQ CLIENT SETUP
-# =============================================================================
+# --- 1. SETUP ---
 
 app = Flask(__name__)
-log = logging.getLogger('werkzeug') # Suppress standard Flask logging
+log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
-CORS(app) # Allow all origins
+CORS(app)
 
-# --- Configuration ---
 WEIGHTS_PATH = "sign_recognizer_best.pth"
 TARGET_FRAMES = 60
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,21 +30,16 @@ TEMP_FOLDER = "temp_processing"
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 mp_holistic = mp.solutions.holistic
 
-# --- Groq LLM Client Initialization ---
 try:
     groq_client = groq.Groq(api_key="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")
-    print("[SUCCESS] Groq client initialized successfully.")
+    print("Groq client initialized successfully.")
 except Exception as e:
-    print(f"[ERROR] Failed to initialize Groq client: {e}. Make sure GROQ_API_KEY is set.")
+    print(f"Failed to initialize Groq client: {e}. Make sure GROQ_API_KEY is set.")
     groq_client = None
 
+job_queues = {}
 
-# --- In-memory queue for video processing jobs ---
-job_queues = {} # Key: job_id, Value: queue.Queue()
-
-# =============================================================================
-# 2. SIGN RECOGNITION MODEL AND KEYPOINT LOGIC (Unchanged)
-# =============================================================================
+# --- 2. SIGN RECOGNITION MODEL ---
 
 def extract_keypoints(res):
     pose = np.array([[l.x, l.y, l.z, l.visibility] for l in res.pose_landmarks.landmark]).flatten() if res.pose_landmarks else np.zeros(33 * 4)
@@ -72,28 +62,25 @@ class SignRecognizer(nn.Module):
         ctx = (h * alpha.unsqueeze(-1)).sum(1)
         return self.head(self.norm(ctx))
 
-print("[INFO] Loading model and weights...")
+print("Loading model and weights...")
 try:
     ckpt = torch.load(WEIGHTS_PATH, map_location=DEVICE)
     classes = ckpt["classes"]
     model = SignRecognizer(1662, len(classes)).to(DEVICE)
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
-    print(f"[SUCCESS] Model loaded successfully: {len(classes)} classes on {str(DEVICE).upper()} device.")
+    print(f"Model loaded successfully: {len(classes)} classes on {str(DEVICE).upper()} device.")
 except Exception as e:
-    print(f"[ERROR] Critical error loading model: {e}")
+    print(f"Critical error loading model: {e}")
     model, classes = None, []
 
-
-# =============================================================================
-# 3. BACKGROUND VIDEO PROCESSING (Unchanged)
-# =============================================================================
+# --- 3. BACKGROUND VIDEO PROCESSING ---
 
 def process_video_in_background(main_video_path, segments, job_id):
-    print(f"\n--- [THREAD START] Processing job {job_id} ---")
+    print(f"Processing job {job_id}")
     q = job_queues.get(job_id)
     if not q:
-        print(f"[ERROR] Could not find job queue for {job_id}. Aborting thread.")
+        print(f"Could not find job queue for {job_id}. Aborting thread.")
         return
 
     try:
@@ -160,15 +147,12 @@ def process_video_in_background(main_video_path, segments, job_id):
         q.put(None)
         if os.path.exists(main_video_path):
             os.remove(main_video_path)
-            print(f"[CLEANUP] Main video deleted: {os.path.basename(main_video_path)}")
-        print(f"--- [THREAD END] Finished job {job_id} ---")
+            print(f"Main video deleted: {os.path.basename(main_video_path)}")
+        print(f"Finished job {job_id}")
 
 
-# =============================================================================
-# 4. HTTP API ENDPOINTS
-# =============================================================================
+# --- 4. API ENDPOINTS ---
 
-# --- Video Classification Endpoints (Unchanged) ---
 @app.route('/classify', methods=['POST'])
 def handle_classification_request():
     if 'video' not in request.files: return jsonify({"error": "No video file provided"}), 400
@@ -187,10 +171,8 @@ def handle_classification_request():
     thread = threading.Thread(target=process_video_in_background, args=(main_video_path, segments, job_id))
     thread.start()
     
-    print(f"\n[API] Job '{job_id}' created for {len(segments)} segments. Handing off to background thread.")
+    print(f"Job '{job_id}' created for {len(segments)} segments.")
     return jsonify({"job_id": job_id}), 202
-
-# app.py (Partial view of the function to be changed)
 
 @app.route('/stream/<job_id>')
 def stream_results(job_id):
@@ -199,26 +181,21 @@ def stream_results(job_id):
         return jsonify({"error": "Invalid or expired job ID"}), 404
 
     def generate():
-        print(f"[STREAM] Client connected to stream for job {job_id}.")
+        print(f"Client connected to stream for job {job_id}.")
         while True:
             result = q.get()
             if result is None:
-                # After the loop, send a final 'complete' event before closing.
                 yield "event: complete\ndata: {}\n\n"
                 break
             
-            # This is the change: wrap the data in a standard format
-            # and use the default 'message' event for segment results.
             yield f"data: {json.dumps(result)}\n\n"
         
         if job_id in job_queues:
             del job_queues[job_id]
-        print(f"[STREAM] Stream closed for job {job_id}. Queue deleted.")
+        print(f"Stream closed for job {job_id}. Queue deleted.")
 
     return Response(generate(), mimetype='text/event-stream')
 
-
-# --- NEW: LLM Sentence Generation Endpoint ---
 @app.route('/generate_sentence', methods=['POST'])
 def generate_sentence_endpoint():
     if not groq_client:
@@ -234,10 +211,8 @@ def generate_sentence_endpoint():
     except Exception:
         return jsonify({"error": "Invalid JSON format in request body."}), 400
 
-    print(f"\n[LLM API] Received request. Glosses: {glosses}, Context: {context_sentences}")
+    print(f"LLM request received. Glosses: {glosses}, Context: {context_sentences}")
 
-    # --- THIS IS THE ONLY PART TO CHANGE ---
-    # Replace the old system_prompt with this new, stricter one.
     system_prompt = """
     You are a medical communication assistant designed to help deaf and mute individuals communicate their health concerns effectively. Your task is to generate clear, contextually appropriate sentences based on gesture inputs and emoji selections.
 
@@ -275,11 +250,10 @@ You will receive input in this format:
 - If only gestures are provided without emojis, still create a meaningful medical sentence
 - If only emojis are provided, create a sentence describing the symptoms
 - Always assume the communication is for medical purposes
-- Keep sentences simple and direct for clear understanding
+- Keep sentences simple and direct for clear understanding
 - Your response MUST NOT contain any explanations, conversational text, or markdown.
 - Output ONLY the final sentence.
-- Do not wrap the sentence in quotation marks.
-
+- Do not wrap the sentence in quotation marks.
 """
     
     user_content = f"Glosses: {json.dumps(glosses)}\nContext: {json.dumps(context_sentences)}"
@@ -296,18 +270,18 @@ You will receive input in this format:
         )
         generated_sentence = chat_completion.choices[0].message.content.strip()
         
-        # Optional: A final check to remove quotes if the model still adds them
         if generated_sentence.startswith('"') and generated_sentence.endswith('"'):
             generated_sentence = generated_sentence[1:-1]
 
-        print(f"[LLM API] Groq response: '{generated_sentence}'")
+        print(f"Groq response: '{generated_sentence}'")
         
         return jsonify({"generated_sentence": generated_sentence})
 
     except Exception as e:
-        print(f"[ERROR] Groq API call failed: {e}")
+        print(f"Groq API call failed: {e}")
         return jsonify({"error": "Failed to generate sentence from LLM."}), 500
 
 if __name__ == '__main__':
-    print("\n--- Starting Flask Server with Groq Integration ---")
+    print(" [######] Classification and LLM Server")
+    print(" [######] Starting server on http://0.0.0.0:5020")
     app.run(host='0.0.0.0', port=5020, threaded=True)

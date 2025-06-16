@@ -1,5 +1,3 @@
-# app.py (Simplified)
-
 import os
 import uuid
 import cv2
@@ -13,21 +11,21 @@ from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 
-# ---------- Basic App Setup ----------------------
+# --- App Setup ---
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}) 
+CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
-    max_http_buffer_size=50 * 1024 * 1024 # Allow large file uploads
+    max_http_buffer_size=50 * 1024 * 1024
 )
 
-# --- Configuration and Helper functions (No changes here) ---
+# --- Configuration & Helpers ---
 WEIGHTS_PATH = "sign_recognizer_best.pth"
 SEQ_LEN = 60
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-TEMP_FOLDER = "temp_videos" # Only one temp folder is needed now
+TEMP_FOLDER = "temp_videos"
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 mp_holistic = mp.solutions.holistic
 
@@ -53,13 +51,13 @@ class SignRecognizer(nn.Module):
     def forward(self, x):
         h, _ = self.lstm(x); α = torch.softmax(self.attn(h).squeeze(-1), 1); ctx = (h * α.unsqueeze(-1)).sum(1); return self.head(self.norm(ctx))
 
-print("⌛ Loading model and weights...")
+print("Loading model and weights...")
 try:
-    ckpt = torch.load(WEIGHTS_PATH, map_location=DEVICE); classes = ckpt["classes"]; model = SignRecognizer(1662, len(classes)).to(DEVICE); model.load_state_dict(ckpt["state_dict"]); model.eval(); print(f"✅ Model loaded successfully — {len(classes)} classes")
+    ckpt = torch.load(WEIGHTS_PATH, map_location=DEVICE); classes = ckpt["classes"]; model = SignRecognizer(1662, len(classes)).to(DEVICE); model.load_state_dict(ckpt["state_dict"]); model.eval(); print(f"Model loaded successfully — {len(classes)} classes")
 except Exception as e:
-    print(f"❌ Error loading model: {e}"); model, classes = None, []
+    print(f"Error loading model: {e}"); model, classes = None, []
 
-# --- Child process to run prediction (No major changes here) ---
+# --- Prediction Process ---
 def run_prediction(video_path, sid, q):
     try:
         q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Sampling video frames...'}})
@@ -79,8 +77,8 @@ def run_prediction(video_path, sid, q):
                 res = holo.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
                 kps.append(extract_all_keypoints(res))
                 if (i + 1) % 10 == 0:
-                       progress = 25 + int(((i+1)/len(frames)) * 50) # Keypoint extraction is 50% of the work
-                       q.put({'sid': sid, 'event': 'status_update', 'data': {'message': f'Processed {i+1}/{len(frames)} frames...', 'progress': progress}})
+                        progress = 25 + int(((i+1)/len(frames)) * 50)
+                        q.put({'sid': sid, 'event': 'status_update', 'data': {'message': f'Processed {i+1}/{len(frames)} frames...', 'progress': progress}})
         
         q.put({'sid': sid, 'event': 'status_update', 'data': {'message': 'Running model inference...', 'progress': 85}})
         seq = torch.from_numpy(np.stack(kps)).unsqueeze(0).to(DEVICE)
@@ -96,38 +94,31 @@ def run_prediction(video_path, sid, q):
     except Exception as e:
         q.put({'sid': sid, 'event': 'prediction_error', 'data': {'error': str(e)}})
     finally:
-        # Clean up the temporary file
         if os.path.exists(video_path):
             os.remove(video_path)
 
-# --- REMOVED: Video conversion function is no longer needed ---
-# --- REMOVED: /videos/<filename> route is no longer needed ---
-
+# --- SocketIO Handlers ---
 @socketio.on('connect')
 def handle_connect():
-    print(f"✅ Client connected: {request.sid}")
+    print(f"Client connected: {request.sid}")
 
 @socketio.on('predict_video')
 def handle_video_prediction(video_data):
-    """Receives video, saves it temporarily, and starts the prediction process."""
     sid = request.sid
-    print(f"▶️ Received video for prediction from client {sid}...")
+    print(f"Received video from client {sid}...")
     
-    # Save the uploaded video to a temporary file
     temp_video_path = os.path.join(TEMP_FOLDER, f"{uuid.uuid4()}.mp4")
     with open(temp_video_path, 'wb') as f:
         f.write(video_data)
 
-    # Start ONLY the prediction process in the background
     pred_process = multiprocessing.Process(target=run_prediction, args=(temp_video_path, sid, q))
     pred_process.start()
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f"❌ Client disconnected: {request.sid}")
+    print(f"Client disconnected: {request.sid}")
 
 def queue_listener(q):
-    """Listens to the queue and emits results back to the correct client."""
     while True:
         try:
             message = q.get()
@@ -137,12 +128,13 @@ def queue_listener(q):
                 room=message['sid']
             )
         except Exception as e:
-            print(f"❌ Error in queue listener: {e}")
+            print(f"Error in queue listener: {e}")
 
 if __name__ == '__main__':
     q = multiprocessing.Queue()
     listener = Thread(target=queue_listener, args=(q,))
     listener.daemon = True
     listener.start()
-    print("🚀 Starting Flask-SocketIO server (Prediction-Only Mode)...")
+    print(" [######] Single gesture recognition server")
+    print(" [######] Starting server on http://0.0.0.0:5000")
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True, use_reloader=False)

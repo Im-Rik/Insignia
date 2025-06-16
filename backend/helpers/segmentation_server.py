@@ -1,5 +1,3 @@
-# ss_server.py (Modified to handle WebM)
-
 import os
 import cv2
 import numpy as np
@@ -7,38 +5,33 @@ import mediapipe as mp
 import multiprocessing as mp_cpu
 import uuid
 import traceback
-import subprocess  # <-- NEW: Import subprocess module
+import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-# =============================================================================
-# 1. FLASK APPLICATION SETUP (No changes)
-# =============================================================================
+# --- 1. FLASK APPLICATION SETUP ---
 
 app = Flask(__name__)
 CORS(app)
 TEMP_UPLOADS_FOLDER = "temp_uploads"
 os.makedirs(TEMP_UPLOADS_FOLDER, exist_ok=True)
 
-# =============================================================================
-# 2. GESTURE SEGMENTATION LOGIC (No changes)
-# =============================================================================
+# --- 2. GESTURE SEGMENTATION LOGIC ---
 
-SCALE           = 0.5
-FLOW_TH_PIX     = 45.0
-SPARSE_POINTS   = 200
-SPARSE_QUALITY  = 0.01
-POSE_IVL        = 2
-POSE_TH         = 0.18
-IDLE_SPLIT      = 3
-MIN_LEN         = 50
-MAX_LEN         = 80
+SCALE = 0.5
+FLOW_TH_PIX = 45.0
+SPARSE_POINTS = 200
+SPARSE_QUALITY = 0.01
+POSE_IVL = 2
+POSE_TH = 0.18
+IDLE_SPLIT = 3
+MIN_LEN = 50
+MAX_LEN = 80
 
 def sparse_flow_mag(prev_g: np.ndarray, next_g: np.ndarray) -> float:
-    # ... (function is unchanged)
     pts = cv2.goodFeaturesToTrack(prev_g, maxCorners=SPARSE_POINTS, qualityLevel=SPARSE_QUALITY, minDistance=10, blockSize=7)
     if pts is None or len(pts) < 10: return 0.0
     nxt, st, _ = cv2.calcOpticalFlowPyrLK(prev_g, next_g, pts, None, winSize=(21, 21), maxLevel=3, criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01))
@@ -50,7 +43,6 @@ def sparse_flow_mag(prev_g: np.ndarray, next_g: np.ndarray) -> float:
     return float(np.mean(mags)) if mags.size else 0.0
 
 def process_batch(frame_idx, path, scale):
-    # ... (function is unchanged)
     cap = cv2.VideoCapture(path)
     out = []
     for i in frame_idx:
@@ -64,7 +56,6 @@ def process_batch(frame_idx, path, scale):
     cap.release(); return out
 
 def detect_gesture_segments_sparse(src: str) -> List[Tuple[int, int]]:
-    # ... (function is unchanged)
     cap = cv2.VideoCapture(src)
     tot = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)); cap.release()
     if tot < 2: return []
@@ -123,9 +114,7 @@ def detect_gesture_segments_sparse(src: str) -> List[Tuple[int, int]]:
     return [(s, e) for s, e in segs if e - s >= MIN_LEN]
 
 
-# =============================================================================
-# 3. API ENDPOINT (MODIFIED TO HANDLE WEBM)
-# =============================================================================
+# --- 3. API ENDPOINT ---
 
 @app.route('/segment', methods=['POST'])
 def auto_segment_video():
@@ -133,68 +122,53 @@ def auto_segment_video():
     file = request.files['video']
     if file.filename == '': return jsonify({"error": "No selected file"}), 400
 
-    # --- MODIFICATION START ---
     original_filename = secure_filename(file.filename)
     file_extension = os.path.splitext(original_filename)[1].lower()
     
-    # Generate a unique base name for temporary files
     unique_basename = f"temp_{uuid.uuid4()}"
     
-    # Save the uploaded file with its original extension
     temp_path = os.path.join(TEMP_UPLOADS_FOLDER, f"{unique_basename}{file_extension}")
     file.save(temp_path)
 
-    # This variable will hold the path to the video that we will actually process
     path_to_process = temp_path
-    converted_path = None # Keep track of the converted file path for cleanup
+    converted_path = None
 
-    # CHECKLIST STEP: If the uploaded file is not an MP4, convert it.
     if file_extension != ".mp4":
         print(f"File is not MP4 ({file_extension}). Converting to MP4...")
         converted_path = os.path.join(TEMP_UPLOADS_FOLDER, f"{unique_basename}.mp4")
         
         try:
-            # Use FFmpeg to convert. -i is input, -an disables audio (not needed for segmentation).
-            # -y overwrites output file if it exists.
             command = [
                 'ffmpeg',
                 '-i', temp_path,
-                '-an', # No audio
-                '-c:v', 'libx264', # A widely compatible video codec
-                '-preset', 'fast', # A good balance of speed and quality
-                '-y', # Overwrite output
+                '-an',
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-y',
                 converted_path
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
             print(f"Successfully converted {temp_path} to {converted_path}")
-            path_to_process = converted_path # Update the path to our new MP4
+            path_to_process = converted_path
         except subprocess.CalledProcessError as e:
-            # If conversion fails, log the error and return a server error
             print(f"--- FFMPEG CONVERSION ERROR ---")
             print(f"FFmpeg stdout: {e.stdout}")
             print(f"FFmpeg stderr: {e.stderr}")
             return jsonify({"error": f"Failed to convert video on server."}), 500
         except FileNotFoundError:
-             # This error occurs if FFmpeg is not installed or not in the system's PATH
             print(f"--- FFMPEG NOT FOUND ---")
             return jsonify({"error": "FFmpeg is not installed or not found in system PATH."}), 500
-
-    # --- MODIFICATION END ---
     
     try:
-        # Get video properties FROM THE FILE WE ARE PROCESSING (which is now guaranteed to be MP4)
         cap = cv2.VideoCapture(path_to_process)
         if not cap.isOpened():
-             # Add a check to ensure OpenCV can open the file
-             raise IOError(f"OpenCV could not open the video file: {path_to_process}")
+            raise IOError(f"OpenCV could not open the video file: {path_to_process}")
         fps = cap.get(cv2.CAP_PROP_FPS) or 30
         cap.release()
 
-        # This is the ONLY thing the server does: detect segments
         frame_segments = detect_gesture_segments_sparse(path_to_process)
         print(f"Found {len(frame_segments)} segments (frames): {frame_segments}")
 
-        # Convert frame numbers to timestamps
         time_segments = [{"start": s / fps, "end": e / fps} for s, e in frame_segments]
 
         return jsonify({"segments": time_segments}), 200
@@ -204,16 +178,13 @@ def auto_segment_video():
         traceback.print_exc()
         return jsonify({"error": f"Failed to process video on server: {e}"}), 500
     finally:
-        # Always clean up BOTH temporary files
         if os.path.exists(temp_path):
             os.remove(temp_path)
         if converted_path and os.path.exists(converted_path):
             os.remove(converted_path)
 
-
 if __name__ == '__main__':
     mp_cpu.freeze_support()
-    print("🚀 Starting Segmentation Data Server on http://127.0.0.1:8000")
-    # Set use_reloader=True for development, but it's better to be False for this kind of script
-    # to avoid re-running setup on code change.
+    print(" [######] Video (gesture) segmentation server")
+    print(" [######] Starting server on http://127.0.0.1:8000")
     app.run(host='127.0.0.1', port=8000, debug=True, use_reloader=False)

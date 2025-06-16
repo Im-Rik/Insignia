@@ -1,5 +1,5 @@
-flask==2.3.2
-flask-socketio==5.3.4
-flask-cors==4.0.0
-torch==2.0.1
-numpy==1.24.4
+torch
+numpy
+Flask
+Flask-SocketIO
+Flask-Cors

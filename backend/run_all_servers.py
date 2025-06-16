@@ -19,7 +19,7 @@ def check_and_install_requirements(folder_path):
         return
 
     print(f"[+] Checking dependencies in: {req_file}")
-    # Check if dependencies are already satisfied
+
     check_process = subprocess.run(
         [sys.executable, "-m", "pip", "check"],
         cwd=folder_path,
@@ -27,13 +27,6 @@ def check_and_install_requirements(folder_path):
         text=True
     )
 
-    # A return code of 0 from 'pip check' means everything is okay.
-    # We proceed to install if it's not 0, though this is a simplification.
-    # A more robust check might parse the output of 'pip freeze'.
-    # For simplicity, we'll stick to installing if 'pip check' suggests issues
-    # or just install every time as in the original script but with better feedback.
-    
-    # Let's refine the original logic for clarity and robustness
     print(f"[*] Attempting to install dependencies from {req_file}")
     install_process = subprocess.run(
         [sys.executable, "-m", "pip", "install", "-r", req_file],
@@ -44,7 +37,6 @@ def check_and_install_requirements(folder_path):
 
     if install_process.returncode == 0:
         print(f"[✓] Dependencies are up to date for {folder_path}")
-        # The stdout can be verbose, so we don't print it unless there's an error.
     else:
         print(f"[!] Failed to install dependencies for {folder_path}")
         print(f"[!] STDERR: {install_process.stderr}")
@@ -78,8 +70,6 @@ def launch_servers():
                     '-e', f'tell app "Terminal" to do script "{command}"'
                 ])
             elif current_os == "Linux":
-                # This assumes gnome-terminal is installed. You might need to adjust
-                # for other terminal emulators like 'xterm' or 'konsole'.
                 subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{command}; exec bash"])
             else:
                 print(f"[!] Unsupported OS: {current_os}")
