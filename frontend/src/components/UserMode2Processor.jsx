@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; // ✅ 1. Import useRef
+import React, { useState, useEffect, useRef } from 'react'; // 1. Import useRef
 import { io } from 'socket.io-client';
 import SubtitleDisplay from './SubtitleDisplay';
 
@@ -29,9 +29,9 @@ function UserMode2Processor({ videoFile }) {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(null);
   const [videoLoadError, setVideoLoadError] = useState(false);
 
-  // ✅ 2. Create a ref to track the processing state without causing re-renders
+  // 2. Create a ref to track the processing state without causing re-renders
   const isProcessingRef = useRef(isProcessing);
-  // ✅ 3. Keep the ref's value in sync with the state on every render
+  //  3. Keep the ref's value in sync with the state on every render
   isProcessingRef.current = isProcessing;
 
   useEffect(() => {
@@ -77,7 +77,7 @@ function UserMode2Processor({ videoFile }) {
     });
     
     socket.on('disconnect', () => {
-      // ✅ 4. Use the ref's current value here. This reads the latest value without being a dependency.
+      // 4. Use the ref's current value here. This reads the latest value without being a dependency.
       if (isProcessingRef.current) {
         setStatusMessage('Lost connection to server.');
         setIsProcessing(false);
@@ -89,7 +89,7 @@ function UserMode2Processor({ videoFile }) {
       URL.revokeObjectURL(localUrl);
       socket.disconnect();
     };
-     // ✅ 5. The dependency array ONLY contains videoFile. The effect will only re-run for a new file.
+     // 5. The dependency array ONLY contains videoFile. The effect will only re-run for a new file.
   }, [videoFile]);
 
   const topPrediction = prediction ? { prediction } : null;

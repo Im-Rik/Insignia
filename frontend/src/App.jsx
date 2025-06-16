@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-// Import all your components
 import VideoDisplay from './components/VideoDisplay';
 import SubtitleDisplay from './components/SubtitleDisplay';
 import Controls from './components/Controls';
@@ -15,13 +14,11 @@ import SymptomSelector from './components/SymptomSelector';
 import Prescription from './components/Prescription';
 import Landing from './components/Landing';
 
-// Import hooks and utils
 import useVideoStream from './hooks/useVideoStream';
 import useMediaPipe from './hooks/useMediaPipe';
 import { socket } from './socket';
 import { extractKeypoints } from './utils/keypointExtractor';
 
-// Add custom styles for animations
 const customStyles = `
   @keyframes fadeIn {
     from {
@@ -115,66 +112,58 @@ function App() {
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [showLanding, setShowLanding] = useState(true);
   const [isEditorActive, setIsEditorActive] = useState(false);
-  const [showSymptomPanel, setShowSymptomPanel] = useState(false); // New state for mobile symptom panel
-  const [recentlySelected, setRecentlySelected] = useState(null); // Track recently selected symptom for animation
+  const [showSymptomPanel, setShowSymptomPanel] = useState(false);
+  const [recentlySelected, setRecentlySelected] = useState(null);
 
   const modeRef = useRef(mode);
   const lastKeypointTime = useRef(0);
   const frameCountRef = useRef(0);
   const editorRef = useRef(null);
 
-  // This ensures the ref is always up-to-date for use in callbacks
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
 
   useEffect(() => {
-    // This will log the state to your browser's developer console every time it changes.
     console.log("APP.JSX STATE UPDATED:", selectedSymptoms.map(s => s.name));
   }, [selectedSymptoms]);
 
   const showMediaPipe = useMemo(() => mode === 'developer-mode-1', [mode]);
 
-  // Handler to switch from landing page to main app
+
   const handleTryNow = useCallback(() => {
     setShowLanding(false);
   }, []);
 
-  // Symptom handlers
   const handleSymptomSelect = useCallback((symptomToToggle) => {
-  setSelectedSymptoms(prevSymptoms => {
-    const isAlreadySelected = prevSymptoms.some(s => s.name === symptomToToggle.name);
+    setSelectedSymptoms(prevSymptoms => {
+      const isAlreadySelected = prevSymptoms.some(s => s.name === symptomToToggle.name);
 
-    if (isAlreadySelected) {
-      // If already selected, filter it out to de-select
-      return prevSymptoms.filter(s => s.name !== symptomToToggle.name);
-    } else {
-      // If not selected, add it to the array
-      return [...prevSymptoms, symptomToToggle];
+      if (isAlreadySelected) {
+        return prevSymptoms.filter(s => s.name !== symptomToToggle.name);
+      } else {
+        return [...prevSymptoms, symptomToToggle];
+      }
+    });
+
+    setRecentlySelected(symptomToToggle.name);
+    setTimeout(() => setRecentlySelected(null), 2000);
+
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
     }
-  });
-
-  // This animation/feedback part can remain as is
-  setRecentlySelected(symptomToToggle.name);
-  setTimeout(() => setRecentlySelected(null), 2000);
-
-  if (window.navigator && window.navigator.vibrate) {
-    window.navigator.vibrate(50);
-  }
-}, []);
+  }, []);
 
   const handleClearSymptoms = useCallback(() => {
     setSelectedSymptoms([]);
   }, []);
 
-  // Editor reset handler
   const triggerEditorReset = () => {
     if (editorRef.current) {
       editorRef.current.reset();
     }
   };
 
-  // FPS counter effect
   useEffect(() => {
     const intervalId = setInterval(() => {
       setFps(frameCountRef.current);
@@ -183,31 +172,27 @@ function App() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Reset editor state when mode changes
   useEffect(() => {
     if (mode !== 'developer-mode-2' && mode !== 'developer-mode-3') {
       setIsEditorActive(false);
     }
   }, [mode]);
 
-  // Socket connection effect - merged logic from both versions
   useEffect(() => {
-    // Don't connect if we are on the landing page
     if (showLanding) return;
 
     const socketModes = ['user-mode-1', 'developer-mode-1'];
 
-    // Connect only if the current mode requires a socket
     if (socketModes.includes(mode)) {
       console.log(`Setting up socket listeners for mode: '${mode}'`);
 
       const onConnect = () => {
-        console.log("✅ Socket connected");
+        console.log("Socket connected");
         setIsConnected(true);
       };
 
       const onDisconnect = () => {
-        console.log("❌ Socket disconnected");
+        console.log("Socket disconnected");
         setIsConnected(false);
       };
 
@@ -254,7 +239,6 @@ function App() {
         socket.off('prediction_result', onPrediction);
       };
     } else {
-      // If we are in a mode that does NOT use the socket, ensure it's disconnected
       if (socket.connected) {
         console.log(`Entering non-socket mode ('${mode}'). Disconnecting...`);
         socket.disconnect();
@@ -264,7 +248,6 @@ function App() {
 
   const handleVideoUpload = useCallback((file) => setUploadedVideo(file), []);
 
-  // MediaPipe results handler
   const onMediaPipeResults = useCallback((results) => {
     frameCountRef.current++;
     setResults(results);
@@ -284,7 +267,7 @@ function App() {
         const keypoints = extractKeypoints(results);
         const hasInvalidData = keypoints.some(p => !isFinite(p));
         if (hasInvalidData) {
-          console.error("❌ Invalid data detected. Aborting send.");
+          console.error("Invalid data detected. Aborting send.");
           return { ...prev, videoResolution: newResolution };
         }
         lastKeypointTime.current = performance.now();
@@ -302,28 +285,20 @@ function App() {
     });
   }, [isRecording, isConnected]);
 
-  // Hook to manage MediaPipe lifecycle
   const enableMediaPipe = useMemo(() =>
     isRecording && (mode === 'developer-mode-1' || mode === 'user-mode-1'),
     [isRecording, mode]
   );
   useMediaPipe(videoRef, enableMediaPipe, onMediaPipeResults);
 
-  // Memoized content based on the current mode
- // --- REPLACE your entire renderContent function in App.jsx with this one ---
-
   const renderContent = useMemo(() => {
     const latestPrediction = predictionHistory.length > 0 ? predictionHistory[0] : null;
 
-    // Consolidate layout for user-mode-1 and developer-mode-1
     if (mode === 'user-mode-1' || mode === 'developer-mode-1') {
       return (
         <div className="flex flex-col lg:flex-row h-full w-full relative gap-4">
-          {/* === START: MAIN CONTENT BLOCK (VIDEO + SIDEBAR) === */}
-          <div className="flex-1 flex flex-col min-w-0"> {/* Flex-1 and min-w-0 to allow shrinking */}
-            {/* Video and Sidebar Container */}
+          <div className="flex-1 flex flex-col min-w-0">
             <div className="flex flex-col lg:flex-row flex-1 overflow-hidden rounded-xl border border-gray-700/50 bg-gray-800/70">
-              {/* Video Section */}
               <div className="flex-grow flex items-center justify-center p-2 sm:p-3 md:p-4 bg-black/50 relative lg:rounded-l-xl min-h-[200px] sm:min-h-[300px] md:min-h-[400px]">
                 <VideoDisplay videoRef={videoRef} isRecording={isRecording} />
                 {showMediaPipe && results && (
@@ -331,7 +306,6 @@ function App() {
                 )}
               </div>
 
-              {/* Sidebar Section (Captions & Message or Developer Analytics) */}
               <div className="w-full lg:w-72 xl:w-80 lg:flex-shrink-0 bg-gray-800/80 lg:border-l border-gray-700/60 flex flex-col lg:rounded-r-xl overflow-hidden">
                 {mode === 'user-mode-1' ? (
                   <div className="h-auto lg:h-full flex flex-col">
@@ -368,7 +342,6 @@ function App() {
                                 animationFillMode: 'both'
                               }}
                             >
-                              <span className="text-base sm:text-lg">{s.emoji}</span>
                               <span className="text-gray-200">{s.name}</span>
                             </div>
                           ))
@@ -410,21 +383,18 @@ function App() {
               </div>
             </div>
           </div>
-          {/* === END: MAIN CONTENT BLOCK === */}
           
-          {/* === START: DETACHED SYMPTOM SELECTOR COLUMN (Desktop) === */}
           {mode !== 'doctor-mode' && (
             <div className="hidden lg:flex w-40 flex-shrink-0">
               <div className="flex flex-col h-full w-full bg-gray-800/70 rounded-xl border border-gray-700/50 overflow-hidden">
                 <SymptomSelector
                   onSymptomSelect={handleSymptomSelect}
                   isMobile={false}
-                  selectedSymptoms={selectedSymptoms} // <-- THE FIX IS HERE
+                  selectedSymptoms={selectedSymptoms}
                 />
               </div>
             </div>
           )}
-          {/* === END: DETACHED SYMPTOM SELECTOR COLUMN === */}
         </div>
       );
     }
@@ -469,7 +439,7 @@ function App() {
                   <SymptomSelector
                     onSymptomSelect={handleSymptomSelect}
                     isMobile={false}
-                    selectedSymptoms={selectedSymptoms} // <-- AND THE FIX IS HERE
+                    selectedSymptoms={selectedSymptoms}
                   />
                 </div>
               </div>
@@ -498,7 +468,6 @@ function App() {
     predictionHistory, devStats, fps, selectedSymptoms, handleClearSymptoms,
     handleSymptomSelect, handleVideoUpload, videoRef, isEditorActive, showSymptomPanel, recentlySelected]);
     
-  // Show landing page if needed
   if (showLanding) {
     return <Landing onTryNow={handleTryNow} />;
   }
@@ -507,17 +476,13 @@ function App() {
     <div className="flex flex-col items-center min-h-screen h-screen bg-gray-900 text-gray-100 font-sans overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       <div className="flex flex-col w-full h-full p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 max-w-screen-2xl mx-auto">
-        {/* Main Content Area */}
         <div className="flex flex-col flex-1 overflow-hidden mb-2 sm:mb-3 md:mb-4">
           {renderContent}
         </div>
 
-        {/* Controls Section */}
         <div className="p-2 sm:p-3 md:p-4 bg-gray-800/70 backdrop-blur-md rounded-lg md:rounded-xl shadow-lg border border-gray-700/50">
-          {/* Mobile and Tablet Layout */}
           <div className="lg:hidden">
             <div className="flex items-center justify-between gap-2">
-              {/* Back Button - Mobile/Tablet */}
               <button
                 onClick={() => setShowLanding(true)}
                 className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium flex items-center gap-1.5"
@@ -529,7 +494,6 @@ function App() {
                 <span className="sm:hidden">Back</span>
               </button>
 
-              {/* Start/Stop Button - Mobile/Tablet (Hidden for doctor mode) */}
               {mode !== 'doctor-mode' && (
                 <button
                   onClick={isRecording ? stopVideo : startVideo}
@@ -560,7 +524,6 @@ function App() {
               )}
             </div>
 
-            {/* Mode Controls - Mobile/Tablet (No additional start/stop button) */}
             <div className="mt-2 overflow-x-auto -mx-2 px-2">
               <Controls
                 isRecording={isRecording}
@@ -577,15 +540,13 @@ function App() {
                 onClearUpload={() => setUploadedVideo(null)}
                 onResetEditor={triggerEditorReset}
                 isEditorActive={isEditorActive}
-                hideStartStop={true}  // Hide start/stop button in Controls on mobile/tablet
-                hideStartStopForMode={mode === 'doctor-mode'} // Hide for doctor mode
+                hideStartStop={true}
+                hideStartStopForMode={mode === 'doctor-mode'}
               />
             </div>
           </div>
 
-          {/* Desktop Layout (1024px and up) */}
           <div className="hidden lg:flex items-center gap-3 lg:gap-4">
-            {/* Back Button - Desktop */}
             <button
               onClick={() => setShowLanding(true)}
               className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-all duration-200 text-sm font-medium flex items-center gap-2 hover:scale-105 transform"
@@ -596,7 +557,6 @@ function App() {
               Back to Home
             </button>
 
-            {/* Controls Component - Desktop (With start/stop button) */}
             <div className="flex-1">
               <Controls
                 isRecording={isRecording}
@@ -613,8 +573,8 @@ function App() {
                 onClearUpload={() => setUploadedVideo(null)}
                 onResetEditor={triggerEditorReset}
                 isEditorActive={isEditorActive}
-                hideStartStop={false}  // Show start/stop button on desktop
-                hideStartStopForMode={false} // Always show on desktop
+                hideStartStop={false}
+                hideStartStopForMode={false}
               />
             </div>
           </div>
