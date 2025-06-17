@@ -31,7 +31,7 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 mp_holistic = mp.solutions.holistic
 
 try:
-    groq_client = groq.Groq(api_key="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")
+    groq_client = groq.Groq(api_key=os.environ.get("GROQ_API_KEY"))
     print("Groq client initialized successfully.")
 except Exception as e:
     print(f"Failed to initialize Groq client: {e}. Make sure GROQ_API_KEY is set.")
