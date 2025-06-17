@@ -1,27 +1,25 @@
----
-
 ## Prerequisites
 
 Before you run this project, make sure the following are installed on your machine:
 
-* [Python](https://www.python.org/downloads/)
-* [Node.js](https://nodejs.org/)
-* [FFmpeg](https://ffmpeg.org/download.html) [windows]
+- [Python](https://www.python.org/downloads/)
+- [Node.js](https://nodejs.org/)
+- [FFmpeg](https://ffmpeg.org/download.html)
 
 ---
 
 ## Set Up Groq API Key
 
-To use the Groq API, follow these steps:
+To use the Groq API:
 
 1. Go to [GroqCloud Console](https://console.groq.com/)
-2. Sign up for a free [as of 17-06-25] account (if you don’t have one).
-3. Navigate to **API Keys** and generate a new **secret key**.
-4. Copy the key. Set it as an environment variable.
+2. Sign up for a free account (as of 17-06-25) if you don’t have one.
+3. Navigate to **API Keys** and create a new **secret key**.
+4. Copy the key and set it as an environment variable.
 
 ### Set Environment Variable (Windows)
 
-Open **Command Prompt** and run:
+Open Command Prompt and run:
 
 ```bash
 setx GROQ_API_KEY "your_api_key_here"
