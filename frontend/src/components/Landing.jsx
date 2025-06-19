@@ -455,11 +455,11 @@ const Landing = ({ onTryNow, onViewDocumentation }) => {
                         <div>
                             <h3 className="font-semibold mb-4">Team</h3>
                             <ul className="space-y-2 text-sm text-gray-400">
-                                <li><a href="#" className="hover:text-white transition-colors">Sourik Roy</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Mayukh Ganguly</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Riddhi Mondal</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Rudranil Bhattacharjee</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Harshit Narayan Trivedi</a></li>
+                                <li><a href="https://www.linkedin.com/in/sourik-ray-0755561b1/" target="_blank" className="hover:text-white transition-colors">Sourik Roy</a></li>
+                                <li><a href="https://www.linkedin.com/in/mayukh-ganguly-319904315/" target="_blank" className="hover:text-white transition-colors">Mayukh Ganguly</a></li>
+                                <li><a href="https://www.linkedin.com/in/riddhi-mondal-659b91222/" target="_blank" className="hover:text-white transition-colors">Riddhi Mondal</a></li>
+                                <li><a href="https://www.linkedin.com/in/rudranilbhattacharjee/" target="_blank" className="hover:text-white transition-colors">Rudranil Bhattacharjee</a></li>
+                                <li><a href="https://www.linkedin.com/in/harshit-narayan-trivedi/" target="_blank" className="hover:text-white transition-colors">Harshit Narayan Trivedi</a></li>
                             </ul>
                         </div>
                         <div>
@@ -474,11 +474,12 @@ const Landing = ({ onTryNow, onViewDocumentation }) => {
                     <div className="mt-8 sm:mt-12 pt-8 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
                         <p className="text-gray-400 text-sm text-center sm:text-left">© 2025 INSIGNIA Project. Netaji Subhash Engineering College.</p>
                         <div className="flex space-x-4 sm:space-x-6 text-sm">
-                            <a href="#" className="text-gray-400 hover:text-white transition-colors">Project Report</a>
-                            <a href="#" className="hover:text-white transition-colors">GitHub Repository</a>
-                            <a href="#" className="hover:text-white transition-colors">Documentation</a>
+                            <a href="https://drive.google.com/file/d/1J6BwG-xoXMhuL2hhmUldrzmIkuHFdsyI/view" target="_blank" className="text-gray-400 hover:text-white transition-colors">Project Report</a>
+                            <a href="https://github.com/Im-Rik/Insignia" target="_blank" className="hover:text-white transition-colors">GitHub Repository</a>
+                            <a href="https://drive.google.com/file/d/1J6BwG-xoXMhuL2hhmUldrzmIkuHFdsyI/view" target="_blank" className="hover:text-white transition-colors">Documentation</a>
                         </div>
                     </div>
+                    <div className="mt-8 sm:mt-12 pt-8 border-t border-gray-800 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0"></div>
                 </div>
             </footer>
 
