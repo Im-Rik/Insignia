@@ -160,3 +160,10 @@ If you need to remove the `GROQ_API_KEY` environment variable from your system l
 ```bash
 REG DELETE HKCU\Environment /F /V GROQ_API_KEY
 ```
+
+---
+
+## Links
+
+* **Youtube** - https://youtu.be/EmS7cnPimVg
+* **Dataset** - https://www.kaggle.com/datasets/linardur/include-24-medical-modified/data
